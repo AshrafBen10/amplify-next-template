@@ -14,6 +14,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 
 import { createChat } from "@/app/utils/createChat";
 import { deleteChat } from "@/app/utils/deleteChat";
+import { describeChat } from "@/app/utils/describeChat";
 import { formatTimestamp } from "./utils/formatTimestamp";
 
 Amplify.configure(outputs);
@@ -26,11 +27,21 @@ export default function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
   const [selectedChat, setSelectedChat] = useState<Schema["ChatHistory"]["type"] | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const sub = client.models.ChatHistory.observeQuery().subscribe({
       next: ({ items }) => {
-        setChats([...items]);
+        const sortedItems = [...items].sort((a, b) => {
+          const timestampA = formatTimestamp(a.createdAt);
+          const timestampB = formatTimestamp(b.createdAt);
+          return timestampB.localeCompare(timestampA);
+        });
+        setChats(sortedItems);
+        if (sortedItems.length > 0) {
+          const firstItemId = sortedItems[0].id;
+          handleDescribeChat(firstItemId);
+        }
       },
     });
     return () => sub.unsubscribe();
@@ -42,16 +53,29 @@ export default function App() {
   const handleDeleteChat = async (id: string) => {
     deleteChat(id, setIsDeleting);
   };
-
-  const handleChatClick = async (id: string) => {
-    try {
-      const { data } = await client.models.ChatHistory.get({ id });
-      setSelectedChat(data);
-    } catch (error) {
-      console.error("Error fetching chat:", error);
-    }
+  const handleDescribeChat = (id: string) => {
+    describeChat(client, id, setSelectedChat);
   };
 
+  // sayHello test
+  useEffect(() => {
+    const fetchGreeting = async () => {
+      try {
+        const { data } = await client.queries.sayHello({
+          name: "こんにちは、これからのソフトウェア開発の主流な主砲について教えてください。AWS AmplifyやCodeCatalystは活用されるでしょうか",
+        });
+        setMessage(data);
+        console.log("say hello");
+      } catch (error) {
+        console.error("Error fetching greeting:", error);
+      }
+    };
+    fetchGreeting();
+  }, []);
+
+  /////////////////
+  /// Rendering ///
+  /////////////////
   return (
     <main>
       <div className="flex justify-center items-center">
@@ -62,7 +86,7 @@ export default function App() {
         <div className="flex flex-col items-center w-1/6 p-3 m-3 border-blue-300 border-2">
           <p className="pb-3">left-bar</p>
           {chats.map(({ id, chat, createdAt }) => (
-            <Button className="flex flex-row items-center space-x-4 border border-gray-200 rounded-md p-2 mb-2 max-w-full" key={id} variant="outlined" onClick={() => handleChatClick(id)}>
+            <Button className="flex flex-row items-center space-x-4 border border-gray-200 rounded-md p-2 mb-2 max-w-full" key={id} variant="outlined" onClick={() => handleDescribeChat(id)}>
               <p>{formatTimestamp(createdAt)}</p>
               <IconButton onClick={() => handleDeleteChat(id)} disabled={isDeleting[id]}>
                 <DeleteIcon />
@@ -78,6 +102,7 @@ export default function App() {
               <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef } }} />
             </div>
             <div className="flex justify-end">{loading ? <Button loading>Create Chat</Button> : <Button onClick={handleCreateChat}>Create Chat</Button>}</div>
+            <p>{message ?? "No message"}</p>
           </div>
         </div>
 
