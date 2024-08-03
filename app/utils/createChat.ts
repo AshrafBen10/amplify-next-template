@@ -7,7 +7,7 @@ const client = generateClient<Schema>();
 export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElement>, setLoading: (loading: boolean) => void) => {
   setLoading(true);
   try {
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     if (textareaRef.current?.value) {
       const value = textareaRef.current.value;
       await client.models.ChatHistory.create({

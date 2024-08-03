@@ -9,10 +9,12 @@ import outputs from "@/amplify_outputs.json";
 import "@aws-amplify/ui-react/styles.css";
 import Textarea from "@mui/joy/Textarea";
 import Button from "@mui/joy/Button";
-import { createChat } from "@/app/utils/createChat";
-import { deleteChat } from "@/app/utils/deleteChat";
 import IconButton from "@mui/joy/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
+
+import { createChat } from "@/app/utils/createChat";
+import { deleteChat } from "@/app/utils/deleteChat";
+import { formatTimestamp } from "./utils/formatTimestamp";
 
 Amplify.configure(outputs);
 
@@ -23,6 +25,7 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
+  const [selectedChat, setSelectedChat] = useState<Schema["ChatHistory"]["type"] | null>(null);
 
   useEffect(() => {
     const sub = client.models.ChatHistory.observeQuery().subscribe({
@@ -40,21 +43,46 @@ export default function App() {
     deleteChat(id, setIsDeleting);
   };
 
+  const handleChatClick = async (id: string) => {
+    try {
+      const { data } = await client.models.ChatHistory.get({ id });
+      setSelectedChat(data);
+    } catch (error) {
+      console.error("Error fetching chat:", error);
+    }
+  };
+
   return (
     <main>
-      <h1>My Chat</h1>
-      <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef } }} />
-      <div className="flex flex-col items-start">
-        {chats.map(({ id, chat }) => (
-          <div className="flex flex-row items-center space-x-4 border border-gray-200 rounded-md p-2 mb-2 max-w-full" key={id}>
-            <p className="break-words">{chat}</p>
-            <IconButton onClick={() => handleDeleteChat(id)} disabled={isDeleting[id]}>
-              <DeleteIcon />
-            </IconButton>
-          </div>
-        ))}
+      <div className="flex justify-center items-center">
+        <h1 className="text-4xl w-fit p-3 m-3 border-blue-300 border-2">My Chat</h1>
       </div>
-      {loading ? <Button loading>Create Chat</Button> : <Button onClick={handleCreateChat}>Create Chat</Button>}
+
+      <div className="flex flex-row">
+        <div className="flex flex-col items-center w-1/6 p-3 m-3 border-blue-300 border-2">
+          <p className="pb-3">left-bar</p>
+          {chats.map(({ id, chat, createdAt }) => (
+            <Button className="flex flex-row items-center space-x-4 border border-gray-200 rounded-md p-2 mb-2 max-w-full" key={id} variant="outlined" onClick={() => handleChatClick(id)}>
+              <p>{formatTimestamp(createdAt)}</p>
+              <IconButton onClick={() => handleDeleteChat(id)} disabled={isDeleting[id]}>
+                <DeleteIcon />
+              </IconButton>
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex flex-col w-4/6 p-3 m-3 border-blue-300 border-2">
+          {selectedChat && <p className="break-words px-4 py-2 bg-slate-100 rounded-lg">{selectedChat.chat}</p>}
+          <div className="mt-auto">
+            <div className="pb-3">
+              <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef } }} />
+            </div>
+            <div className="flex justify-end">{loading ? <Button loading>Create Chat</Button> : <Button onClick={handleCreateChat}>Create Chat</Button>}</div>
+          </div>
+        </div>
+
+        <div className="w-1/6 flex justify-center p-3 m-3 border-blue-300 border-2">right-bar</div>
+      </div>
     </main>
   );
 }
