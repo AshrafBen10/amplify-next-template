@@ -2,20 +2,8 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { chatClaude } from "../functions/chat-claude/resource";
 
 // content: a.json().array()
-// [
-//   {
-//     "message": "test1",
-//     "role": "user"
-//   },
-//   {
-//     "message": "test2",
-//     "role": "assistant"
-//   },
-//   {
-//     "message": "test3",
-//     "role": "user"
-//   }
-// ]
+// ★2重配列であり、''で囲む必要がある
+// ['[{"role":"user","message":"test"},{"role":"assistant","message":"test"},{"role":"user","message":"test"}]'];
 
 const schema = a.schema({
   ChatHistory: a

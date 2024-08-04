@@ -21,13 +21,17 @@ interface Message {
 
 export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) => {
   try {
-    const content = event.arguments.content as Message[] | undefined;
-    console.log("デバッグしている関数");
-    console.log(content);
+    const rawContent = event.arguments.content as string[] | undefined;
+    console.log("Raw content:", rawContent);
 
     let newContent;
-    if (content && Array.isArray(content)) {
-      newContent = content.map((item) => ({
+    if (rawContent && Array.isArray(rawContent) && rawContent.length > 0) {
+      // JSON文字列をパースして Message 配列に変換
+      const parsedContent = JSON.parse(rawContent[0]) as Message[];
+      console.log("Parsed content:", parsedContent);
+
+      // 必要な形式に変換
+      newContent = parsedContent.map((item) => ({
         role: item.role,
         message: [{ type: "text", text: item.message }],
       }));

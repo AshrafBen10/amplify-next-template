@@ -37,6 +37,20 @@ export default function App() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    // const createChatHistory = async () => {
+    //   try {
+    //     const strArray = ['[{"role":"user","message":"test"},{"role":"assistant","message":"test"},{"role":"user","message":"test"}]'];
+    //     const response = await client.models.ChatHistory.create({
+    //       id: "1",
+    //       content: strArray,
+    //     });
+    //     console.log("create", response);
+    //   } catch (error) {
+    //     console.error("Error creating ChatHistory:", error);
+    //   }
+    // };
+    // createChatHistory();
+
     const sub = client.models.ChatHistory.observeQuery().subscribe({
       next: ({ items }) => {
         const sortedItems = [...items].sort((a, b) => {
@@ -89,14 +103,14 @@ export default function App() {
         </div>
 
         <div className="flex flex-col w-4/6 p-3 m-3 border-blue-300 border-2">
-          {selectedChat &&
+          {/* {selectedChat &&
             selectedChat.content &&
             Array.isArray(selectedChat.content) &&
             selectedChat.content.map((message: { role: string; content: string }, index: number) => (
               <p key={index} className={`break-words px-4 py-2 rounded-lg ${message.role === "user" ? "bg-blue-100" : message.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}>
                 {message.content}
               </p>
-            ))}
+            ))} */}
           <div className="mt-auto">
             <div className="pb-3">
               <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef } }} />
