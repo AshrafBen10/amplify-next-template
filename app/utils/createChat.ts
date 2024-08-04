@@ -4,6 +4,20 @@ import { v4 as uuidv4 } from "uuid";
 
 const client = generateClient<Schema>();
 
+const removeConsecutiveRoles = (messages: { role: string; message: string }[]) => {
+  const result: { role: string; message: string }[] = [];
+  let lastRole: string | null = null;
+
+  for (const message of messages) {
+    if (message.role !== lastRole) {
+      result.push(message);
+      lastRole = message.role;
+    }
+  }
+
+  return result;
+};
+
 export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElement>, setLoading: (loading: boolean) => void, selectedChatId?: string) => {
   console.log(`getID: ${selectedChatId}`);
   setLoading(true);
@@ -29,6 +43,9 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
           chatId = existingChat.data.id;
           chatMessages.push(newContent);
 
+          // 連続する役割のメッセージを削除
+          chatMessages = removeConsecutiveRoles(chatMessages);
+
           // JSON文字列に変換して更新
           const updatedContent = [JSON.stringify(chatMessages)];
           const response = await client.queries.ChatClaude({
@@ -49,6 +66,9 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
         // 新しいチャットを作成
         chatId = uuidv4();
         chatMessages = [newContent];
+
+        // 連続する役割のメッセージを削除
+        chatMessages = removeConsecutiveRoles(chatMessages);
 
         // JSON文字列に変換
         const newContentString = [JSON.stringify(chatMessages)];

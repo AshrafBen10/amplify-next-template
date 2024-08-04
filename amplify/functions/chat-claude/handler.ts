@@ -25,12 +25,12 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
     console.log("Raw content:", rawContent);
 
     let newContent;
-    if (rawContent && Array.isArray(rawContent)) {
-      // JSON文字列をパース
-      const parsedContent = JSON.parse(rawContent[0]) as Message[];
+    if (rawContent && Array.isArray(rawContent) && rawContent.length > 0) {
+      // rawContent[0] を文字列として扱い、JSON.parse でパースする
+      const parsedContent = Array.isArray(rawContent[0]) ? rawContent[0] : JSON.parse(rawContent[0]); // rawContent[0] が JSON 文字列である場合にのみパース
 
       // 必要な形式に変換
-      newContent = parsedContent.map((item) => ({
+      newContent = parsedContent.map((item: Message) => ({
         role: item.role,
         content: [
           {
