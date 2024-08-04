@@ -79,17 +79,30 @@ export default function App() {
   };
 
   // チャット削除処理
+  // const handleDeleteChat = async (id: string) => {
+  //   setIsDeleting((prevState) => ({ ...prevState, [id]: true }));
+  //   setLoading(true);
+  //   try {
+  //     await deleteChat(id, setIsDeleting);
+  //     if (chats.length > 1) {
+  //       const newSelectedChat = chats[0];
+  //       setSelectedChat(newSelectedChat);
+  //     } else {
+  //       setSelectedChat(null);
+  //     }
+  //   } catch (error) {
+  //     console.error("チャットの削除中にエラーが発生しました:", error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const handleDeleteChat = async (id: string) => {
     setIsDeleting((prevState) => ({ ...prevState, [id]: true }));
     setLoading(true);
     try {
       await deleteChat(id, setIsDeleting);
-      if (chats.length > 1) {
-        const newSelectedChat = chats[0];
-        setSelectedChat(newSelectedChat);
-      } else {
-        setSelectedChat(null);
-      }
+      handleDescribeChat(id);
     } catch (error) {
       console.error("チャットの削除中にエラーが発生しました:", error);
     } finally {
