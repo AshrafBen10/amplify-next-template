@@ -21,20 +21,23 @@ interface Message {
 
 export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) => {
   try {
-    const rawContent = event.arguments.content as string[] | undefined;
+    const rawContent = event.arguments.content as (string | Message[])[] | undefined;
     console.log("Raw content:", rawContent);
 
     let newContent;
     if (rawContent && Array.isArray(rawContent) && rawContent.length > 0) {
-      // JSON文字列をパースして Message 配列に変換
-      const parsedContent = JSON.parse(rawContent[0]) as Message[];
-      console.log("Parsed content:", parsedContent);
+      // rawContent の最初の要素が配列であると仮定
+      // rawContent がすでに Message 配列である場合
+      const contentArray = rawContent[0];
 
-      // 必要な形式に変換
-      newContent = parsedContent.map((item) => ({
-        role: item.role,
-        message: [{ type: "text", text: item.message }],
-      }));
+      if (Array.isArray(contentArray)) {
+        newContent = contentArray.map((item) => ({
+          role: item.role,
+          message: [{ type: "text", text: item.message }],
+        }));
+      } else {
+        throw new Error("Unexpected format for content array");
+      }
     } else {
       newContent = [
         {
