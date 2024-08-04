@@ -10,14 +10,17 @@ import Textarea from "@mui/joy/Textarea";
 import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { v4 as uuidv4 } from "uuid";
 
 import { createChat } from "@/app/utils/createChat";
 import { deleteChat } from "@/app/utils/deleteChat";
 import { describeChat } from "@/app/utils/describeChat";
 import { formatTimestamp } from "./utils/formatTimestamp";
 
+// Amplifyの設定
 Amplify.configure(outputs);
 
+// クライアントの生成
 const client = generateClient<Schema>();
 
 type Message = {
@@ -33,8 +36,8 @@ export default function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
   const [selectedChat, setSelectedChat] = useState<ChatHistory | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
+  // チャット一覧の取得と監視
   useEffect(() => {
     const sub = client.models.ChatHistory.observeQuery().subscribe({
       next: ({ items }) => {
@@ -44,24 +47,57 @@ export default function App() {
           return timestampB.localeCompare(timestampA);
         });
         setChats(sortedItems);
-        if (sortedItems.length > 0) {
+        if (sortedItems.length > 0 && !selectedChat) {
           const firstItemId = sortedItems[0].id;
           handleDescribeChat(firstItemId);
         }
       },
     });
     return () => sub.unsubscribe();
-  }, []);
+  }, [selectedChat]);
 
+  // チャット作成処理
   const handleCreateChat = () => {
-    console.log("createChat");
-    createChat(textareaRef, setLoading, selectedChat?.id);
+    createChat(textareaRef, setLoading, selectedChat?.id, setSelectedChat);
   };
 
+  // 新しいチャット作成処理
+  const handleNewChat = async () => {
+    setLoading(true);
+    try {
+      const newChatId = uuidv4();
+      const newChatContent = { id: newChatId, content: [] };
+
+      await client.models.ChatHistory.create(newChatContent);
+      console.log("新しいチャットを作成しました:", newChatId);
+      handleDescribeChat(newChatId);
+    } catch (error) {
+      console.error("チャットの作成中にエラーが発生しました:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // チャット削除処理
   const handleDeleteChat = async (id: string) => {
-    deleteChat(id, setIsDeleting);
+    setIsDeleting((prevState) => ({ ...prevState, [id]: true }));
+    setLoading(true);
+    try {
+      await deleteChat(id, setIsDeleting);
+      if (chats.length > 1) {
+        const newSelectedChat = chats[0];
+        setSelectedChat(newSelectedChat);
+      } else {
+        setSelectedChat(null);
+      }
+    } catch (error) {
+      console.error("チャットの削除中にエラーが発生しました:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // チャット詳細取得処理
   const handleDescribeChat = (id: string) => {
     describeChat(client, id, setSelectedChat);
   };
@@ -78,6 +114,7 @@ export default function App() {
       <div className="flex flex-row">
         <div className="flex flex-col items-center w-1/6 p-3 m-3 border-blue-300 border-2">
           <p className="pb-3">left-bar</p>
+          <div className="pb-4">{loading ? <Button loading>New Chat</Button> : <Button onClick={handleNewChat}>New Chat</Button>}</div>
           {chats.map(({ id, content, createdAt }) => (
             <Button className="flex flex-row items-center space-x-4 border border-gray-200 rounded-md p-2 mb-2 max-w-full" key={id} variant="outlined" onClick={() => handleDescribeChat(id)}>
               <p>{formatTimestamp(createdAt)}</p>

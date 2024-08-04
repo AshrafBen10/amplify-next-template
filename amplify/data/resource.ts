@@ -15,7 +15,7 @@ const schema = a.schema({
   ChatClaude: a
     .query()
     .arguments({
-      content: a.json().array().required(),
+      content: a.json().array(),
     })
     .returns(a.string())
     .handler(a.handler.function(chatClaude))
