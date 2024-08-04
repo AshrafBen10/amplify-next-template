@@ -5,12 +5,14 @@ import { v4 as uuidv4 } from "uuid";
 const client = generateClient<Schema>();
 
 export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElement>, setLoading: (loading: boolean) => void, selectedChatId?: string) => {
+  console.log(`getID: ${selectedChatId}`);
   setLoading(true);
   try {
     if (textareaRef.current?.value) {
       const value = textareaRef.current.value;
       const newContent = {
-        message: value,
+        message: "test",
+        // message: value,
         role: "user",
       };
       let chatMessages;
@@ -25,7 +27,7 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
           chatMessages.push(newContent);
 
           // chatClaudeクエリを実行
-          const response = await client.queries.chatClaude({
+          const response = await client.queries.ChatClaude({
             content: chatMessages,
           });
           console.log(response);
@@ -45,7 +47,7 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
         chatMessages = [newContent];
 
         // chatClaudeクエリを実行
-        const response = await client.queries.chatClaude({
+        const response = await client.queries.ChatClaude({
           content: chatMessages,
         });
         console.log(response);
@@ -56,6 +58,8 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
           content: chatMessages,
         });
         console.log("新しいチャットを作成しました:", chatId);
+        const existingChat = await client.models.ChatHistory.get({ id: chatId });
+        console.log("新しいチャットの内容", existingChat);
       }
 
       textareaRef.current.value = "";

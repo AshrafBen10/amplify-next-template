@@ -19,7 +19,7 @@ interface Message {
   message: string;
 }
 
-export const handler: Schema["chatClaude"]["functionHandler"] = async (event) => {
+export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) => {
   try {
     const content = event.arguments.content as Message[] | undefined;
     console.log("デバッグしている関数");
