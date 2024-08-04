@@ -4,18 +4,23 @@ import { v4 as uuidv4 } from "uuid";
 
 const client = generateClient<Schema>();
 
-const removeConsecutiveRoles = (messages: { role: string; message: string }[]) => {
-  const result: { role: string; message: string }[] = [];
-  let lastRole: string | null = null;
+const insertSkipMessages = (messages: { role: string; message: string }[]) => {
+  const updatedMessages: { role: string; message: string }[] = [];
 
-  for (const message of messages) {
-    if (message.role !== lastRole) {
-      result.push(message);
-      lastRole = message.role;
+  for (let i = 0; i < messages.length; i++) {
+    updatedMessages.push(messages[i]);
+
+    // Check for consecutive messages of the same role
+    if (i < messages.length - 1 && messages[i].role === messages[i + 1].role) {
+      const skipMessage = {
+        role: messages[i].role === "user" ? "assistant" : "user",
+        message: "skip", // Use "skip" instead of an empty message
+      };
+      updatedMessages.push(skipMessage);
     }
   }
 
-  return result;
+  return updatedMessages;
 };
 
 export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElement>, setLoading: (loading: boolean) => void, selectedChatId?: string) => {
@@ -43,8 +48,8 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
           chatId = existingChat.data.id;
           chatMessages.push(newContent);
 
-          // 連続する役割のメッセージを削除
-          chatMessages = removeConsecutiveRoles(chatMessages);
+          // 連続するメッセージの間に"skip"メッセージを追加
+          chatMessages = insertSkipMessages(chatMessages);
 
           // JSON文字列に変換して更新
           const updatedContent = [JSON.stringify(chatMessages)];
@@ -67,8 +72,8 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
         chatId = uuidv4();
         chatMessages = [newContent];
 
-        // 連続する役割のメッセージを削除
-        chatMessages = removeConsecutiveRoles(chatMessages);
+        // 連続するメッセージの間に"skip"メッセージを追加
+        chatMessages = insertSkipMessages(chatMessages);
 
         // JSON文字列に変換
         const newContentString = [JSON.stringify(chatMessages)];
