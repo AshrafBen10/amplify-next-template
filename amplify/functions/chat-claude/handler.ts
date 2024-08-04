@@ -20,11 +20,11 @@ interface Message {
 }
 
 export const handler: Schema["chatClaude"]["functionHandler"] = async (event) => {
-  const content = event.arguments.content as { messages: Message[] } | undefined;
+  const content = event.arguments.content as Message[] | undefined;
 
   let messages;
-  if (content && Array.isArray(content.messages)) {
-    messages = content.messages.map((item) => ({
+  if (content && Array.isArray(content)) {
+    messages = content.map((item) => ({
       role: item.role,
       content: [{ type: "text", text: item.message }],
     }));
@@ -54,5 +54,9 @@ export const handler: Schema["chatClaude"]["functionHandler"] = async (event) =>
   const decodedResponseBody = new TextDecoder().decode(apiResponse.body);
   const responseBody = JSON.parse(decodedResponseBody);
 
-  return responseBody.content[0].text;
+  if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
+    return responseBody.content[0].text;
+  } else {
+    throw new Error("Unexpected response format from the API");
+  }
 };

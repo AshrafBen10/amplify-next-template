@@ -55,6 +55,7 @@ export default function App() {
   }, []);
 
   const handleCreateChat = () => {
+    console.log("createChat");
     createChat(textareaRef, setLoading, selectedChat?.id);
     // setMessage(data);
   };

@@ -9,54 +9,52 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
   try {
     if (textareaRef.current?.value) {
       const value = textareaRef.current.value;
-
       const newContent = {
         message: value,
         role: "user",
       };
-
       let chatMessages;
       let chatId;
 
       if (selectedChatId) {
-        // 既存のチャットを取得
+        // 既存のチャットを更新
         const existingChat = await client.models.ChatHistory.get({ id: selectedChatId });
         if (existingChat.data) {
-          chatMessages = existingChat.data.messages || {};
+          chatMessages = Array.isArray(existingChat.data.messages) ? existingChat.data.messages : [];
           chatId = existingChat.data.id;
-          if (!Array.isArray(chatMessages)) {
-            chatMessages = [];
-          }
           chatMessages.push(newContent);
+
+          // chatClaudeクエリを実行
+          const { data } = await client.queries.chatClaude({
+            content: chatMessages,
+          });
+
+          // 既存のチャットを更新
+          await client.models.ChatHistory.update({
+            id: chatId,
+            messages: chatMessages,
+          });
         } else {
-          // 既存のチャットが見つからない場合、新しいチャットとして扱う
-          chatId = uuidv4();
-          chatMessages = [newContent];
+          console.error("指定されたIDのチャットが見つかりません");
+          return;
         }
       } else {
-        // 新しいチャットコンテンツを作成
+        // 新しいチャットを作成
         chatId = uuidv4();
         chatMessages = [newContent];
-      }
 
-      // chatClaudeクエリを実行
-      const { data } = await client.queries.chatClaude({
-        content: chatMessages,
-      });
-
-      if (selectedChatId) {
-        // 既存のチャットを更新
-        await client.models.ChatHistory.update({
-          id: selectedChatId,
-          messages: chatMessages,
+        // chatClaudeクエリを実行
+        const { data } = await client.queries.chatClaude({
+          content: chatMessages,
         });
-      } else {
+        console.log(data);
+
         // 新しいチャットを作成
-        const newId = uuidv4();
         await client.models.ChatHistory.create({
-          id: newId,
+          id: chatId,
           messages: chatMessages,
         });
+        console.log("新しいチャットを作成しました:", chatId);
       }
 
       textareaRef.current.value = "";
