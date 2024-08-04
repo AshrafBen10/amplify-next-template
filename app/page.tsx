@@ -78,7 +78,7 @@ export default function App() {
       <div className="flex flex-row">
         <div className="flex flex-col items-center w-1/6 p-3 m-3 border-blue-300 border-2">
           <p className="pb-3">left-bar</p>
-          {chats.map(({ id, messages, createdAt }) => (
+          {chats.map(({ id, content, createdAt }) => (
             <Button className="flex flex-row items-center space-x-4 border border-gray-200 rounded-md p-2 mb-2 max-w-full" key={id} variant="outlined" onClick={() => handleDescribeChat(id)}>
               <p>{formatTimestamp(createdAt)}</p>
               <IconButton onClick={() => handleDeleteChat(id)} disabled={isDeleting[id]}>
@@ -90,9 +90,9 @@ export default function App() {
 
         <div className="flex flex-col w-4/6 p-3 m-3 border-blue-300 border-2">
           {selectedChat &&
-            selectedChat.messages &&
-            Array.isArray(selectedChat.messages) &&
-            selectedChat.messages.map((message: { role: string; content: string }, index: number) => (
+            selectedChat.content &&
+            Array.isArray(selectedChat.content) &&
+            selectedChat.content.map((message: { role: string; content: string }, index: number) => (
               <p key={index} className={`break-words px-4 py-2 rounded-lg ${message.role === "user" ? "bg-blue-100" : message.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}>
                 {message.content}
               </p>

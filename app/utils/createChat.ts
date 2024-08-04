@@ -20,19 +20,20 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
         // 既存のチャットを更新
         const existingChat = await client.models.ChatHistory.get({ id: selectedChatId });
         if (existingChat.data) {
-          chatMessages = Array.isArray(existingChat.data.messages) ? existingChat.data.messages : [];
+          chatMessages = Array.isArray(existingChat.data.content) ? existingChat.data.content : [];
           chatId = existingChat.data.id;
           chatMessages.push(newContent);
 
           // chatClaudeクエリを実行
-          const { data } = await client.queries.chatClaude({
+          const response = await client.queries.chatClaude({
             content: chatMessages,
           });
+          console.log(response);
 
           // 既存のチャットを更新
           await client.models.ChatHistory.update({
             id: chatId,
-            messages: chatMessages,
+            content: chatMessages,
           });
         } else {
           console.error("指定されたIDのチャットが見つかりません");
@@ -44,15 +45,15 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
         chatMessages = [newContent];
 
         // chatClaudeクエリを実行
-        const { data } = await client.queries.chatClaude({
+        const response = await client.queries.chatClaude({
           content: chatMessages,
         });
-        console.log(data);
+        console.log(response);
 
         // 新しいチャットを作成
         await client.models.ChatHistory.create({
           id: chatId,
-          messages: chatMessages,
+          content: chatMessages,
         });
         console.log("新しいチャットを作成しました:", chatId);
       }
