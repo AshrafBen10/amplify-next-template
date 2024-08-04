@@ -1,7 +1,7 @@
 import { defineFunction } from "@aws-amplify/backend";
 
-export const sayHello = defineFunction({
-  name: "say-hello",
+export const chatClaude = defineFunction({
+  name: "chat-claude",
   entry: "./handler.ts",
   timeoutSeconds: 900,
 });

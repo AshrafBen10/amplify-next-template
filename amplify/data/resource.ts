@@ -1,21 +1,22 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
-import { sayHello } from "../functions/say-hello/resource";
+import { chatClaude } from "../functions/chat-claude/resource";
 
 const schema = a.schema({
   ChatHistory: a
     .model({
       id: a.id().required(),
-      chat: a.string().required(),
+      messages: a.json().required(),
+      // chat: a.string().required(),
     })
     .authorization((allow) => [allow.publicApiKey()]),
 
-  sayHello: a
+  chatClaude: a
     .query()
     .arguments({
-      name: a.string(),
+      content: a.json().required(),
     })
     .returns(a.string())
-    .handler(a.handler.function(sayHello))
+    .handler(a.handler.function(chatClaude))
     .authorization((allow) => [allow.publicApiKey()]),
 });
 

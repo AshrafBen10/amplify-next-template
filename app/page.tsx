@@ -21,12 +21,19 @@ Amplify.configure(outputs);
 
 const client = generateClient<Schema>();
 
+type Message = {
+  role: string;
+  content: string;
+};
+
+type ChatHistory = Schema["ChatHistory"]["type"];
+
 export default function App() {
-  const [chats, setChats] = useState<Schema["ChatHistory"]["type"][]>([]);
+  const [chats, setChats] = useState<ChatHistory[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
-  const [selectedChat, setSelectedChat] = useState<Schema["ChatHistory"]["type"] | null>(null);
+  const [selectedChat, setSelectedChat] = useState<ChatHistory | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,7 +55,8 @@ export default function App() {
   }, []);
 
   const handleCreateChat = () => {
-    createChat(textareaRef, setLoading);
+    createChat(textareaRef, setLoading, selectedChat?.id);
+    // setMessage(data);
   };
   const handleDeleteChat = async (id: string) => {
     deleteChat(id, setIsDeleting);
@@ -56,22 +64,6 @@ export default function App() {
   const handleDescribeChat = (id: string) => {
     describeChat(client, id, setSelectedChat);
   };
-
-  // sayHello test
-  useEffect(() => {
-    const fetchGreeting = async () => {
-      try {
-        const { data } = await client.queries.sayHello({
-          name: "こんにちは、これからのソフトウェア開発の主流な主砲について教えてください。AWS AmplifyやCodeCatalystは活用されるでしょうか",
-        });
-        setMessage(data);
-        console.log("say hello");
-      } catch (error) {
-        console.error("Error fetching greeting:", error);
-      }
-    };
-    fetchGreeting();
-  }, []);
 
   /////////////////
   /// Rendering ///
@@ -85,7 +77,7 @@ export default function App() {
       <div className="flex flex-row">
         <div className="flex flex-col items-center w-1/6 p-3 m-3 border-blue-300 border-2">
           <p className="pb-3">left-bar</p>
-          {chats.map(({ id, chat, createdAt }) => (
+          {chats.map(({ id, messages, createdAt }) => (
             <Button className="flex flex-row items-center space-x-4 border border-gray-200 rounded-md p-2 mb-2 max-w-full" key={id} variant="outlined" onClick={() => handleDescribeChat(id)}>
               <p>{formatTimestamp(createdAt)}</p>
               <IconButton onClick={() => handleDeleteChat(id)} disabled={isDeleting[id]}>
@@ -96,7 +88,14 @@ export default function App() {
         </div>
 
         <div className="flex flex-col w-4/6 p-3 m-3 border-blue-300 border-2">
-          {selectedChat && <p className="break-words px-4 py-2 bg-slate-100 rounded-lg">{selectedChat.chat}</p>}
+          {selectedChat &&
+            selectedChat.messages &&
+            Array.isArray(selectedChat.messages) &&
+            selectedChat.messages.map((message: { role: string; content: string }, index: number) => (
+              <p key={index} className={`break-words px-4 py-2 rounded-lg ${message.role === "user" ? "bg-blue-100" : message.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}>
+                {message.content}
+              </p>
+            ))}
           <div className="mt-auto">
             <div className="pb-3">
               <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef } }} />

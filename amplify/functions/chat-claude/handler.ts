@@ -1,8 +1,4 @@
-// AWS SDK (TypeScript)のマニュアル
-// https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/bedrock-runtime/
-// https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/javascript_bedrock-runtime_code_examples.html
-import { BedrockRuntimeClient, InvokeModelCommand, InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
-
+import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { NodeHttpHandler } from "@aws-sdk/node-http-handler";
 import type { Schema } from "../../data/resource";
 
@@ -14,29 +10,49 @@ const config = {
     socketTimeout: 900000,
   }),
 };
+
 const bedrock_client = new BedrockRuntimeClient(config);
 const model_id = "anthropic.claude-3-sonnet-20240229-v1:0";
 
-export const handler: Schema["sayHello"]["functionHandler"] = async (event) => {
-  const prompt = event.arguments.name || "nothing";
+interface Message {
+  role: string;
+  message: string;
+}
+
+export const handler: Schema["chatClaude"]["functionHandler"] = async (event) => {
+  const content = event.arguments.content as { messages: Message[] } | undefined;
+
+  let messages;
+  if (content && Array.isArray(content.messages)) {
+    messages = content.messages.map((item) => ({
+      role: item.role,
+      content: [{ type: "text", text: item.message }],
+    }));
+  } else {
+    messages = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "こんにちは" }],
+      },
+    ];
+  }
+
   const payload = {
     anthropic_version: "bedrock-2023-05-31",
     max_tokens: 4000,
-    messages: [
-      {
-        role: "user",
-        content: [{ type: "text", text: prompt }],
-      },
-    ],
+    messages: messages,
   };
+
   const command = new InvokeModelCommand({
     modelId: model_id,
     contentType: "application/json",
     accept: "application/json",
     body: JSON.stringify(payload),
   });
+
   const apiResponse = await bedrock_client.send(command);
   const decodedResponseBody = new TextDecoder().decode(apiResponse.body);
   const responseBody = JSON.parse(decodedResponseBody);
+
   return responseBody.content[0].text;
 };
