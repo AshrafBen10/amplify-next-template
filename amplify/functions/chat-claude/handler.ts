@@ -19,23 +19,37 @@ interface Message {
   message: string;
 }
 
-export const handler: Schema["chatClaude"]["functionHandler"] = async (event) => {
+export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) => {
   try {
-    const content = event.arguments.content as Message[] | undefined;
-    console.log("デバッグしている関数");
-    console.log(content);
+    const rawContent = event.arguments.content as string[] | undefined;
+    console.log("Raw content:", rawContent);
 
     let newContent;
-    if (content && Array.isArray(content)) {
-      newContent = content.map((item) => ({
+    if (rawContent && Array.isArray(rawContent) && rawContent.length > 0) {
+      // rawContent[0] を文字列として扱い、JSON.parse でパースする
+      const parsedContent = Array.isArray(rawContent[0]) ? rawContent[0] : JSON.parse(rawContent[0]); // rawContent[0] が JSON 文字列である場合にのみパース
+
+      // 必要な形式に変換
+      newContent = parsedContent.map((item: Message) => ({
         role: item.role,
-        message: [{ type: "text", text: item.message }],
+        content: [
+          {
+            type: "text",
+            text: item.message,
+          },
+        ],
       }));
     } else {
+      // デフォルトのメッセージ
       newContent = [
         {
           role: "user",
-          message: [{ type: "text", text: "こんにちは" }],
+          content: [
+            {
+              type: "text",
+              text: "こんにちは",
+            },
+          ],
         },
       ];
     }
