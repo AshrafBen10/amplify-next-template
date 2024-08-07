@@ -9,7 +9,8 @@ const schema = a.schema({
   ChatHistory: a
     .model({
       id: a.id().required(),
-      content: a.json().array().required(),
+      email: a.string().required(),
+      content: a.json().array(),
     })
     .authorization((allow) => [allow.publicApiKey()]),
   ChatClaude: a

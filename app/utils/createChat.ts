@@ -32,7 +32,7 @@ const insertSkipMessages = (messages: { role: string; message: string }[]) => {
 };
 
 // チャット作成または更新処理
-export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElement>, setLoading: (loading: boolean) => void, selectedChatId?: string, setSelectedChat?: (chat: Schema["ChatHistory"]["type"] | null) => void) => {
+export const createChat = async (email: string, textareaRef: React.RefObject<HTMLTextAreaElement>, setLoading: (loading: boolean) => void, selectedChatId?: string, setSelectedChat?: (chat: Schema["ChatHistory"]["type"] | null) => void) => {
   setLoading(true);
   let chatId: string | undefined;
   try {
@@ -47,7 +47,7 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
       if (selectedChatId) {
         // 既存のチャットを取得して更新する処理
         const existingChat = await client.models.ChatHistory.get({ id: selectedChatId });
-        if (existingChat.data) {
+        if (existingChat.data && existingChat.data.content) {
           const content = existingChat.data.content[0];
           if (typeof content === "string") {
             chatMessages = JSON.parse(content);
@@ -89,6 +89,7 @@ export const createChat = async (textareaRef: React.RefObject<HTMLTextAreaElemen
         // 新しいチャットを作成
         await client.models.ChatHistory.create({
           id: chatId,
+          email: email,
           content: newContentString,
         });
 

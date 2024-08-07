@@ -10,11 +10,11 @@ import Textarea from "@mui/joy/Textarea";
 import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { v4 as uuidv4 } from "uuid";
 import { Authenticator } from "@aws-amplify/ui-react";
 import { fetchUserAttributes, fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
 
+import { newCreateChat } from "@/app/utils/newCreateChat";
 import { createChat } from "@/app/utils/createChat";
 import { deleteChat } from "@/app/utils/deleteChat";
 import { describeChat } from "@/app/utils/describeChat";
@@ -22,34 +22,34 @@ import { formatTimestamp } from "./utils/formatTimestamp";
 
 // Amplifyの設定
 Amplify.configure(outputs);
-
-// クライアントの生成
 const client = generateClient<Schema>();
 
 type Message = {
   role: string;
   content: string;
 };
-
 type ChatHistory = Schema["ChatHistory"]["type"];
 
 export default function App() {
+  ////////////////////////////
+  /// React State, Ref定義 ///
+  ////////////////////////////
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
   const [selectedChat, setSelectedChat] = useState<ChatHistory | null>(null);
+  const [email, setEmail] = useState<string>("");
 
   ////////////
   /// 認証 ///
   ////////////
-  const [loginId, setLoginId] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
+  // ユーザ情報を取得する
   const getAuthenticatedUser = async () => {
     try {
-      const { username, userId, signInDetails } = await getCurrentUser();
-      const session = await fetchAuthSession({ forceRefresh: true });
-      const attributes = await fetchUserAttributes();
+      const session = await fetchAuthSession({ forceRefresh: true }); // セッションの自動リフレッシュ
+      const { username, userId, signInDetails } = await getCurrentUser(); // 情報取得1
+      const attributes = await fetchUserAttributes(); // 情報取得2
       if (attributes.email) {
         setEmail(attributes.email);
       } else {
@@ -59,94 +59,85 @@ export default function App() {
       console.log(error);
     }
   };
-  // Hubで認証関連(サインアップやサインアウト)のイベントリスナーを設定可能
+  // Hubで認証関連(サインアップやサインアウト)のイベントリスナーを設定
   Hub.listen("auth", async (data) => {
     switch (data.payload.event) {
+      // サインイン時のイベントリスナー
       case "signedIn": {
         getAuthenticatedUser();
+        break;
       }
     }
   });
 
-  //////////////////////////////
-  /// チャット一覧の取得と監視 ///
-  //////////////////////////////
+  //////////////////////////////////
+  /// チャット履歴一覧の取得と監視 ///
+  /////////////////////////////////
+  // https://docs.amplify.aws/nextjs/build-a-backend/data/subscribe-data/
+  // observeQueryは、(onCreate, onUpdate, onDelete)全てのデータベース更新情報をリアルタイムに取得できる
   useEffect(() => {
-    getAuthenticatedUser(); // 認証情報取得
-    const sub = client.models.ChatHistory.observeQuery().subscribe({
-      next: ({ items }) => {
-        const sortedItems = [...items].sort((a, b) => {
-          const timestampA = formatTimestamp(a.createdAt);
-          const timestampB = formatTimestamp(b.createdAt);
-          return timestampB.localeCompare(timestampA);
+    const fetchChats = async () => {
+      await getAuthenticatedUser();
+      if (email) {
+        const sub = client.models.ChatHistory.observeQuery({
+          filter: { email: { eq: email } },
+        }).subscribe({
+          next: ({ items }) => {
+            const sortedItems = [...items].sort((a, b) => {
+              const timestampA = formatTimestamp(a.createdAt);
+              const timestampB = formatTimestamp(b.createdAt);
+              return timestampB.localeCompare(timestampA);
+            });
+            setChats(sortedItems);
+            if (sortedItems.length > 0 && !selectedChat) {
+              const firstItemId = sortedItems[0].id;
+              if (firstItemId) {
+                handleDescribeChat(firstItemId);
+              }
+            }
+          },
         });
-        setChats(sortedItems);
-        if (sortedItems.length > 0 && !selectedChat) {
-          const firstItemId = sortedItems[0].id;
-          handleDescribeChat(firstItemId);
-        }
-      },
-    });
-    return () => sub.unsubscribe();
-  }, [selectedChat]);
+        return () => sub.unsubscribe();
+      }
+    };
 
-  // チャット作成処理
-  const handleCreateChat = () => {
-    createChat(textareaRef, setLoading, selectedChat?.id, setSelectedChat);
+    fetchChats();
+  }, [email, selectedChat]);
+
+  /////////////////////////////////////////
+  /// チャットの作成・削除・表示などの処理 ///
+  /////////////////////////////////////////
+  // チャット作成処理1 (Buttonを押した場合)
+  const handleCreateChat = async () => {
+    await createChat(email, textareaRef, setLoading, selectedChat?.id, setSelectedChat);
+  };
+  // チャット作成処理2 (Enterキーを押した場合)
+  const handleKeyDown = async (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter") {
+      if (event.shiftKey) {
+        // Shift+Enter の場合は改行
+        return;
+      } else {
+        // Enter の場合は handleCreateChat を実行
+        event.preventDefault(); // Enterキーのデフォルト動作を防ぐ（改行を防ぐ）
+        await createChat(email, textareaRef, setLoading, selectedChat?.id, setSelectedChat);
+      }
+    }
   };
 
   // 新しいチャット作成処理
-  const handleNewChat = async () => {
-    setLoading(true);
-    try {
-      const newChatId = uuidv4();
-      const newChatContent = { id: newChatId, content: [] };
-
-      await client.models.ChatHistory.create(newChatContent);
-      console.log("新しいチャットを作成しました:", newChatId);
-      handleDescribeChat(newChatId);
-    } catch (error) {
-      console.error("チャットの作成中にエラーが発生しました:", error);
-    } finally {
-      setLoading(false);
-    }
+  const handleNewCreateChat = async () => {
+    await newCreateChat(email, setLoading, setSelectedChat);
   };
 
   // チャット削除処理
-  // const handleDeleteChat = async (id: string) => {
-  //   setIsDeleting((prevState) => ({ ...prevState, [id]: true }));
-  //   setLoading(true);
-  //   try {
-  //     await deleteChat(id, setIsDeleting);
-  //     if (chats.length > 1) {
-  //       const newSelectedChat = chats[0];
-  //       setSelectedChat(newSelectedChat);
-  //     } else {
-  //       setSelectedChat(null);
-  //     }
-  //   } catch (error) {
-  //     console.error("チャットの削除中にエラーが発生しました:", error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const handleDeleteChat = async (id: string) => {
-    setIsDeleting((prevState) => ({ ...prevState, [id]: true }));
-    setLoading(true);
-    try {
-      await deleteChat(id, setIsDeleting);
-      handleDescribeChat(id);
-    } catch (error) {
-      console.error("チャットの削除中にエラーが発生しました:", error);
-    } finally {
-      setLoading(false);
-    }
+    await deleteChat(id, setIsDeleting, setLoading, handleDescribeChat);
   };
 
-  // チャット詳細取得処理
-  const handleDescribeChat = (id: string) => {
-    describeChat(client, id, setSelectedChat);
+  // チャット内容表示処理
+  const handleDescribeChat = async (id: string) => {
+    await describeChat(client, id, setSelectedChat);
   };
 
   /////////////////
@@ -167,14 +158,16 @@ export default function App() {
           <div className="flex flex-row">
             <div className="flex flex-col items-center w-1/6 p-3 m-3 border-blue-300 border-2">
               <p className="pb-3">left-bar</p>
-              <div className="pb-4">{loading ? <Button loading>New Chat</Button> : <Button onClick={handleNewChat}>New Chat</Button>}</div>
+              <div className="pb-4">{loading ? <Button loading>New Chat</Button> : <Button onClick={handleNewCreateChat}>New Chat</Button>}</div>
               {chats.map(({ id, content, createdAt }) => (
-                <Button className="flex flex-row items-center space-x-4 border border-gray-200 rounded-md p-2 mb-2 max-w-full" key={id} variant="outlined" onClick={() => handleDescribeChat(id)}>
-                  <p>{formatTimestamp(createdAt)}</p>
-                  <IconButton onClick={() => handleDeleteChat(id)} disabled={isDeleting[id]}>
-                    <DeleteIcon />
-                  </IconButton>
-                </Button>
+                <div className="flex flex-row items-center mb-2">
+                  <Button key={id} variant="outlined" onClick={() => handleDescribeChat(id)}>
+                    <p>{formatTimestamp(createdAt)}</p>
+                    <IconButton onClick={() => handleDeleteChat(id)} disabled={isDeleting[id]}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </Button>
+                </div>
               ))}
             </div>
 
@@ -185,13 +178,13 @@ export default function App() {
                 selectedChat.content.length > 0 &&
                 typeof selectedChat.content[0] === "string" &&
                 JSON.parse(selectedChat.content[0]).map((message: { role: string; message: string }, index: number) => (
-                  <p key={index} className={`break-words px-4 py-2 rounded-lg ${message.role === "user" ? "bg-blue-100" : message.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}>
+                  <p key={index} className={`break-words px-4 py-2 mb-2 rounded-lg ${message.role === "user" ? "bg-blue-100" : message.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}>
                     {message.message}
                   </p>
                 ))}
               <div className="mt-auto">
                 <div className="pb-3">
-                  <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef } }} />
+                  <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef, onKeyDown: handleKeyDown } }} />
                 </div>
                 <div className="flex justify-end">{loading ? <Button loading>Create Chat</Button> : <Button onClick={handleCreateChat}>Create Chat</Button>}</div>
               </div>

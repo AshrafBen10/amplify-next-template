@@ -19,8 +19,10 @@ export const auth = defineAuth({
           email: "email",
         },
       },
-      callbackUrls: ["http://localhost:3000/", "https://www.chatbot.metalmental.net", "https://dev.chatbot.metalmental.net"],
-      logoutUrls: ["http://localhost:3000/", "https://www.chatbot.metalmental.net", "https://www.dev.chatbot.metalmental.net"],
+      callbackUrls: ["https://be1748a04fef8dfa848d.auth.us-west-2.amazoncognito.com", "http://localhost:3000/", "https://dev.chatbot.metalmental.net"],
+      logoutUrls: ["http://localhost:3000/", "https://www.dev.chatbot.metalmental.net"],
+      // callbackUrls: ["http://localhost:3000/", "https://www.chatbot.metalmental.net"],
+      // logoutUrls: ["http://localhost:3000/", "https://www.chatbot.metalmental.net"],
     },
   },
 });
