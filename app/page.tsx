@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "@/amplify/data/resource";
 import "./../app/app.css";
@@ -13,6 +13,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Authenticator } from "@aws-amplify/ui-react";
 import { fetchUserAttributes, fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
+import { I18n } from "aws-amplify/utils";
+import { translations } from "@aws-amplify/ui-react";
+import { PubSub } from "@aws-amplify/pubsub";
+import { CONNECTION_STATE_CHANGE, ConnectionState } from "@aws-amplify/pubsub";
 
 import { newCreateChat } from "@/app/utils/newCreateChat";
 import { createChat } from "@/app/utils/createChat";
@@ -20,131 +24,156 @@ import { deleteChat } from "@/app/utils/deleteChat";
 import { describeChat } from "@/app/utils/describeChat";
 import { formatTimestamp } from "./utils/formatTimestamp";
 
-// Amplifyの設定
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
-
-type Message = {
-  role: string;
-  content: string;
-};
+I18n.putVocabularies(translations);
+I18n.setLanguage("ja");
 type ChatHistory = Schema["ChatHistory"]["type"];
 
+const TOPIC = "test";
+const pubsub = new PubSub({
+  region: "us-west-2",
+  endpoint: "wss://atiwkw1dtx972-ats.iot.us-west-2.amazonaws.com/mqtt",
+});
+
 export default function App() {
-  ////////////////////////////
-  /// React State, Ref定義 ///
-  ////////////////////////////
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
   const [selectedChat, setSelectedChat] = useState<ChatHistory | null>(null);
   const [email, setEmail] = useState<string>("");
+  const [cognitoIdentityId, setCognitoIdentityId] = useState<string>("");
+  const [message, setMessage] = useState("");
+  const [connectionState, setConnectionState] = useState<ConnectionState | null>(null);
 
-  ////////////
-  /// 認証 ///
-  ////////////
-  // ユーザ情報を取得する
-  const getAuthenticatedUser = async () => {
+  const getAuthenticatedUser = useCallback(async () => {
     try {
-      const session = await fetchAuthSession({ forceRefresh: true }); // セッションの自動リフレッシュ
-      const { username, userId, signInDetails } = await getCurrentUser(); // 情報取得1
-      const attributes = await fetchUserAttributes(); // 情報取得2
-      if (attributes.email) {
+      const session = await fetchAuthSession({ forceRefresh: true });
+      const identityId = session.identityId as string;
+      if (identityId !== cognitoIdentityId) {
+        setCognitoIdentityId(identityId);
+      }
+      const { username, userId, signInDetails } = await getCurrentUser();
+      const attributes = await fetchUserAttributes();
+      if (attributes.email && attributes.email !== email) {
         setEmail(attributes.email);
-      } else {
-        console.log("Email not found in user attributes");
       }
     } catch (error) {
       console.log(error);
     }
-  };
-  // Hubで認証関連(サインアップやサインアウト)のイベントリスナーを設定
-  Hub.listen("auth", async (data) => {
-    switch (data.payload.event) {
-      // サインイン時のイベントリスナー
-      case "signedIn": {
-        getAuthenticatedUser();
-        break;
-      }
-    }
-  });
+  }, [cognitoIdentityId, email]);
 
-  //////////////////////////////////
-  /// チャット履歴一覧の取得と監視 ///
-  /////////////////////////////////
-  // https://docs.amplify.aws/nextjs/build-a-backend/data/subscribe-data/
-  // observeQueryは、(onCreate, onUpdate, onDelete)全てのデータベース更新情報をリアルタイムに取得できる
   useEffect(() => {
-    const fetchChats = async () => {
-      await getAuthenticatedUser();
-      if (email) {
-        const sub = client.models.ChatHistory.observeQuery({
-          filter: { email: { eq: email } },
-        }).subscribe({
-          next: ({ items }) => {
-            const sortedItems = [...items].sort((a, b) => {
-              const timestampA = formatTimestamp(a.createdAt);
-              const timestampB = formatTimestamp(b.createdAt);
-              return timestampB.localeCompare(timestampA);
-            });
-            setChats(sortedItems);
-            if (sortedItems.length > 0 && !selectedChat) {
-              const firstItemId = sortedItems[0].id;
-              if (firstItemId) {
-                handleDescribeChat(firstItemId);
-              }
-            }
-          },
+    getAuthenticatedUser();
+  }, [getAuthenticatedUser]);
+
+  useEffect(() => {
+    Hub.listen("auth", async (data) => {
+      if (data.payload.event === "signedIn") {
+        getAuthenticatedUser();
+      }
+    });
+  }, [getAuthenticatedUser]);
+
+  useEffect(() => {
+    if (!email) return;
+
+    const sub = client.models.ChatHistory.observeQuery({
+      filter: { email: { eq: email } },
+    }).subscribe({
+      next: ({ items }) => {
+        const sortedItems = [...items].sort((a, b) => {
+          const timestampA = formatTimestamp(a.createdAt);
+          const timestampB = formatTimestamp(b.createdAt);
+          return timestampB.localeCompare(timestampA);
         });
-        return () => sub.unsubscribe();
+        setChats(sortedItems);
+        if (sortedItems.length > 0 && !selectedChat) {
+          const firstItemId = sortedItems[0].id;
+          if (firstItemId) {
+            handleDescribeChat(firstItemId);
+          }
+        }
+      },
+    });
+
+    return () => sub.unsubscribe();
+  }, [email, selectedChat]);
+
+  useEffect(() => {
+    if (!cognitoIdentityId) return;
+
+    const setupPubSub = async () => {
+      try {
+        const res = await client.queries.PubSub({
+          cognitoIdentityId: cognitoIdentityId,
+        });
+        console.log(res);
+
+        interface PubSubMessage {
+          role: string;
+          message: string;
+        }
+        // dataは、PubSubMessageになる
+        const sub = pubsub.subscribe({ topics: TOPIC }).subscribe({
+          next: (data: any) => {
+            setMessage(data.message);
+            console.log("Message received", data);
+          },
+          error: console.error,
+        });
+
+        const hubListener = Hub.listen("pubsub", (data: any) => {
+          const { payload } = data;
+          if (payload.event === CONNECTION_STATE_CHANGE) {
+            setConnectionState(payload.data.connectionState as ConnectionState);
+          }
+        });
+
+        return () => {
+          sub.unsubscribe();
+          hubListener();
+        };
+      } catch (error) {
+        console.error("Error setting up PubSub:", error);
       }
     };
 
-    fetchChats();
+    const cleanup = setupPubSub();
+    return () => {
+      cleanup.then((cleanupFn) => cleanupFn && cleanupFn());
+    };
+  }, [cognitoIdentityId]);
+
+  const handleCreateChat = useCallback(async () => {
+    await createChat(email, textareaRef, setLoading, selectedChat?.id, setSelectedChat);
   }, [email, selectedChat]);
 
-  /////////////////////////////////////////
-  /// チャットの作成・削除・表示などの処理 ///
-  /////////////////////////////////////////
-  // チャット作成処理1 (Buttonを押した場合)
-  const handleCreateChat = async () => {
-    await createChat(email, textareaRef, setLoading, selectedChat?.id, setSelectedChat);
-  };
-  // チャット作成処理2 (Enterキーを押した場合)
-  const handleKeyDown = async (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter") {
-      if (event.shiftKey) {
-        // Shift+Enter の場合は改行
-        return;
-      } else {
-        // Enter の場合は handleCreateChat を実行
-        event.preventDefault(); // Enterキーのデフォルト動作を防ぐ（改行を防ぐ）
+  const handleKeyDown = useCallback(
+    async (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
         await createChat(email, textareaRef, setLoading, selectedChat?.id, setSelectedChat);
       }
-    }
-  };
+    },
+    [email, selectedChat],
+  );
 
-  // 新しいチャット作成処理
-  const handleNewCreateChat = async () => {
+  const handleNewCreateChat = useCallback(async () => {
     await newCreateChat(email, setLoading, setSelectedChat);
-  };
+  }, [email]);
 
-  // チャット削除処理
-  const handleDeleteChat = async (id: string) => {
+  const handleDeleteChat = useCallback(async (id: string) => {
     await deleteChat(id, setIsDeleting, setLoading, handleDescribeChat);
-  };
+  }, []);
 
-  // チャット内容表示処理
-  const handleDescribeChat = async (id: string) => {
+  const handleDescribeChat = useCallback(async (id: string) => {
     await describeChat(client, id, setSelectedChat);
-  };
+  }, []);
 
-  /////////////////
-  /// Rendering ///
-  /////////////////
   return (
-    <Authenticator>
+    <Authenticator variation="modal">
       {({ signOut, user }) => (
         <main>
           <div className="flex flex-col justify-center items-center">
@@ -160,8 +189,8 @@ export default function App() {
               <p className="pb-3">left-bar</p>
               <div className="pb-4">{loading ? <Button loading>New Chat</Button> : <Button onClick={handleNewCreateChat}>New Chat</Button>}</div>
               {chats.map(({ id, content, createdAt }) => (
-                <div className="flex flex-row items-center mb-2">
-                  <Button key={id} variant="outlined" onClick={() => handleDescribeChat(id)}>
+                <div key={id} className="flex flex-row items-center mb-2">
+                  <Button variant="outlined" onClick={() => handleDescribeChat(id)}>
                     <p>{formatTimestamp(createdAt)}</p>
                     <IconButton onClick={() => handleDeleteChat(id)} disabled={isDeleting[id]}>
                       <DeleteIcon />
@@ -190,7 +219,14 @@ export default function App() {
               </div>
             </div>
 
-            <div className="w-1/6 flex justify-center p-3 m-3 border-blue-300 border-2">right-bar</div>
+            <div className="w-1/6 flex flex-col items-center p-3 m-3 border-blue-300 border-2">
+              <div>right-bar</div>
+              {message && (
+                <div className="bg-green-100 p-2 mb-4 rounded">
+                  <p>{message}</p>
+                </div>
+              )}
+            </div>
           </div>
         </main>
       )}

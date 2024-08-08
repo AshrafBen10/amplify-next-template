@@ -7,8 +7,11 @@ https://docs.amplify.aws/nextjs/start/quickstart/nextjs-app-router-client-compon
 ```bash
 # 開発環境を起動
 # amplify_outputs.json にデータが格納される(手動でデータをセットすることも可能)
-npx ampx sandbox
+npx ampx sandbox --stream-function-logs
 npm run dev
+
+# 名前指定でサンドボックス作成(複数作成する場合など)
+npx ampx sandbox --identifier sandbox1
 
 npx ampx sandbox delete
 ```
