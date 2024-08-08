@@ -24,13 +24,18 @@ import { deleteChat } from "@/app/utils/deleteChat";
 import { describeChat } from "@/app/utils/describeChat";
 import { formatTimestamp } from "./utils/formatTimestamp";
 
+///////////////
+/// Amplify ///
+///////////////
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
 I18n.putVocabularies(translations);
 I18n.setLanguage("ja");
 type ChatHistory = Schema["ChatHistory"]["type"];
 
-const TOPIC = "test";
+///////////////////////
+/// IoT Core PubSub ///
+///////////////////////
 const pubsub = new PubSub({
   region: "us-west-2",
   endpoint: "wss://atiwkw1dtx972-ats.iot.us-west-2.amazonaws.com/mqtt",
@@ -46,18 +51,25 @@ export default function App() {
   const [cognitoIdentityId, setCognitoIdentityId] = useState<string>("");
   const [message, setMessage] = useState("");
   const [connectionState, setConnectionState] = useState<ConnectionState | null>(null);
+  const [topic, setTopic] = useState<string>("");
 
+  /////////////////////
+  /// ユーザ情報取得 ///
+  /////////////////////
+  // useCallback の使いどころ(無限再レンダリングなどを防げる)
+  // 1. 複数の useEffect が同じ関数に依存している場合
+  // 2. ある useEffect の結果が別の useEffect の入力になるような場合
   const getAuthenticatedUser = useCallback(async () => {
     try {
       const session = await fetchAuthSession({ forceRefresh: true });
-      const identityId = session.identityId as string;
+      const identityId = session.identityId as string; // Cognito Identity IDは、IoT Policyの許可で必要
       if (identityId !== cognitoIdentityId) {
         setCognitoIdentityId(identityId);
       }
       const { username, userId, signInDetails } = await getCurrentUser();
       const attributes = await fetchUserAttributes();
       if (attributes.email && attributes.email !== email) {
-        setEmail(attributes.email);
+        setEmail(attributes.email); // Emailは、ユーザを識別するために利用
       }
     } catch (error) {
       console.log(error);
@@ -76,6 +88,9 @@ export default function App() {
     });
   }, [getAuthenticatedUser]);
 
+  /////////////////////////////////////
+  /// データベース情報のサブスクライブ ///
+  /////////////////////////////////////
   useEffect(() => {
     if (!email) return;
 
@@ -101,8 +116,13 @@ export default function App() {
     return () => sub.unsubscribe();
   }, [email, selectedChat]);
 
+  ////////////////////////////////////
+  /// IoT Core PubSub サブスクライブ ///
+  ////////////////////////////////////
   useEffect(() => {
-    if (!cognitoIdentityId) return;
+    if (!cognitoIdentityId || !email) return;
+
+    setTopic(email); // メールアドレスをトピックとして設定
 
     const setupPubSub = async () => {
       try {
@@ -115,8 +135,8 @@ export default function App() {
           role: string;
           message: string;
         }
-        // dataは、PubSubMessageになる
-        const sub = pubsub.subscribe({ topics: TOPIC }).subscribe({
+
+        const sub = pubsub.subscribe({ topics: email }).subscribe({
           next: (data: any) => {
             setMessage(data.message);
             console.log("Message received", data);
@@ -144,12 +164,17 @@ export default function App() {
     return () => {
       cleanup.then((cleanupFn) => cleanupFn && cleanupFn());
     };
-  }, [cognitoIdentityId]);
+  }, [cognitoIdentityId, email]);
 
+  ///////////////////
+  /// チャット処理 ///
+  ///////////////////
+  // チャット送信1 (Buttonクリック時)
   const handleCreateChat = useCallback(async () => {
     await createChat(email, textareaRef, setLoading, selectedChat?.id, setSelectedChat);
   }, [email, selectedChat]);
 
+  // チャット送信2 (Enterキー時)
   const handleKeyDown = useCallback(
     async (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (event.key === "Enter" && !event.shiftKey) {
@@ -160,18 +185,24 @@ export default function App() {
     [email, selectedChat],
   );
 
+  // 新規チャット作成
   const handleNewCreateChat = useCallback(async () => {
     await newCreateChat(email, setLoading, setSelectedChat);
   }, [email]);
 
+  // チャット削除
   const handleDeleteChat = useCallback(async (id: string) => {
     await deleteChat(id, setIsDeleting, setLoading, handleDescribeChat);
   }, []);
 
+  // チャット内容表示
   const handleDescribeChat = useCallback(async (id: string) => {
     await describeChat(client, id, setSelectedChat);
   }, []);
 
+  ///////////////////
+  /// レンダリング ///
+  ///////////////////
   return (
     <Authenticator variation="modal">
       {({ signOut, user }) => (
