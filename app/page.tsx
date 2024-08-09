@@ -49,6 +49,7 @@ export default function App() {
   const [selectedChat, setSelectedChat] = useState<ChatHistory | null>(null);
   const [email, setEmail] = useState<string>("");
   const [cognitoIdentityId, setCognitoIdentityId] = useState<string>("");
+  const [role, setRole] = useState("");
   const [message, setMessage] = useState("");
   const [connectionState, setConnectionState] = useState<ConnectionState | null>(null);
   const [topic, setTopic] = useState<string>("");
@@ -138,7 +139,8 @@ export default function App() {
 
         const sub = pubsub.subscribe({ topics: email }).subscribe({
           next: (data: any) => {
-            setMessage(data.message);
+            setRole(data.role);
+            setMessage((prevMessage) => prevMessage + data.message);
             console.log("Message received", data);
           },
           error: console.error,
@@ -252,6 +254,11 @@ export default function App() {
 
             <div className="w-1/6 flex flex-col items-center p-3 m-3 border-blue-300 border-2">
               <div>right-bar</div>
+              {role && (
+                <div className="bg-green-100 p-2 mb-4 rounded">
+                  <p>{role}</p>
+                </div>
+              )}
               {message && (
                 <div className="bg-green-100 p-2 mb-4 rounded">
                   <p>{message}</p>

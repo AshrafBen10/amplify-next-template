@@ -16,7 +16,7 @@ const backend = defineBackend({
 const chatClaudeFunction = backend.chatClaude.resources.lambda;
 const chatClaudeStatement = new iam.PolicyStatement({
   sid: "AllowBedrockFullAccess",
-  actions: ["bedrock:*"],
+  actions: ["bedrock:*", "iot:*"],
   resources: ["*"],
 });
 chatClaudeFunction.addToRolePolicy(chatClaudeStatement);
