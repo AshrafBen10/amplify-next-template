@@ -24,7 +24,7 @@ import { deleteChat } from "@/app/utils/deleteChat";
 import { describeChat } from "@/app/utils/describeChat";
 import { updateChat } from "@/app/utils/updateChat";
 import { formatTimestamp } from "./utils/formatTimestamp";
-import Loading from "./loading";
+import Loading from "./loading_custom";
 
 ///////////////
 /// Amplify ///
@@ -54,6 +54,7 @@ export default function App() {
   const [claudeMessage, setClaudeMessage] = useState("");
   const [chatgptMessage, setChatgptMessage] = useState("");
   const [connectionState, setConnectionState] = useState<ConnectionState | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
 
@@ -175,23 +176,34 @@ export default function App() {
 
         const sub = pubsub.subscribe({ topics: email }).subscribe({
           next: (data: any) => {
+            setConnectionState(ConnectionState.Connected);
             if (data.role === "claude") {
               setClaudeMessage((prevMessage) => prevMessage + data.message);
             } else if (data.role === "chatgpt") {
               setChatgptMessage((prevMessage) => prevMessage + data.message);
             }
           },
-          error: console.error,
-          complete: () => console.log("PubSub Session Completed"),
+          error: (error) => {
+            console.error("Error in PubSub subscription:", error);
+            setConnectionState(ConnectionState.Disconnected);
+            setupPubSub();
+          },
+          complete: () => {
+            console.log("PubSub Session Completed");
+            setConnectionState(ConnectionState.Disconnected);
+            setupPubSub();
+          },
         });
 
         const hubListener = Hub.listen("pubsub", (data: any) => {
           const { payload } = data;
           if (payload.event === CONNECTION_STATE_CHANGE) {
             const newState = payload.data.connectionState as ConnectionState;
-            console.log("PubSub connection state changed:", newState, payload);
+            console.log("PubSub connection state changed:", newState);
             setConnectionState(newState);
-            checkInitialization();
+            if (newState !== ConnectionState.Connected) {
+              setupPubSub();
+            }
           }
         });
 
@@ -208,7 +220,7 @@ export default function App() {
     return () => {
       cleanup.then((cleanupFn) => cleanupFn && cleanupFn());
     };
-  }, [cognitoIdentityId, email, checkInitialization]);
+  }, [cognitoIdentityId, email, isReconnecting]);
 
   ///////////////////
   /// チャット処理 ///
