@@ -57,6 +57,8 @@ export default function App() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [claudeCount, setClaudeCount] = useState<number>(0);
+  const [chatgptCount, setChatgptCount] = useState<number>(0);
 
   ///////////////////////
   /// ローディング画面 ///
@@ -264,11 +266,13 @@ export default function App() {
   /// claudeの場合 ///
   const handleUpdateClaudeChat = useCallback(async () => {
     await updateChat(setLoading, setSelectedChat, claudeMessage, setClaudeMessage, setChatgptMessage, selectedChat?.id);
+    setClaudeCount((prevCount) => prevCount + 1);
   }, [selectedChat, claudeMessage]);
 
   /// chatgptの場合 ///
   const handleUpdateChatgptChat = useCallback(async () => {
     await updateChat(setLoading, setSelectedChat, chatgptMessage, setClaudeMessage, setChatgptMessage, selectedChat?.id);
+    setChatgptCount((prevCount) => prevCount + 1);
   }, [selectedChat, chatgptMessage]);
 
   // チャット内容表示
@@ -288,10 +292,14 @@ export default function App() {
           ) : (
             <main>
               <div className="flex flex-col justify-center items-center">
-                <h1 className="text-4xl w-fit p-3 m-3 border-blue-300 border-2">My Chat</h1>
+                <h1 className="text-4xl w-fit p-3 m-3 border-blue-300 border-2">Claude VS ChatGPT</h1>
                 <p className="pb-4">こんにちは {email} さん</p>
                 <div className="pb-4">
                   <Button onClick={signOut}>Sign out</Button>
+                </div>
+                <div className="flex flex-row space-x-4">
+                  <p className="text-green-500">Claudeが選ばれた回数: {claudeCount}</p>
+                  <p className="text-yellow-500">ChatGPTが選ばれた回数: {chatgptCount}</p>
                 </div>
               </div>
 
