@@ -3,12 +3,14 @@ import { defineBackend } from "@aws-amplify/backend";
 import { auth } from "./auth/resource.js";
 import { data } from "./data/resource.js";
 import { chatClaude } from "./functions/chat-claude/resource";
+import { chatGPT } from "./functions/chat-gpt/resource";
 import { pubSub } from "./functions/pubsub/resource.js";
 
 const backend = defineBackend({
   auth,
   data,
   chatClaude,
+  chatGPT,
   pubSub,
 });
 
@@ -24,11 +26,19 @@ backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(
 // CDKを利用してLambdaに追加のIAM Policyを割り当てる
 const chatClaudeFunction = backend.chatClaude.resources.lambda;
 const chatClaudeStatement = new iam.PolicyStatement({
-  sid: "AllowBedrockFullAccess",
+  sid: "AllowBedrockAndIoTFullAccess",
   actions: ["bedrock:*", "iot:*"],
   resources: ["*"],
 });
 chatClaudeFunction.addToRolePolicy(chatClaudeStatement);
+
+const chatGPTFunction = backend.chatGPT.resources.lambda;
+const chatGPTStatement = new iam.PolicyStatement({
+  sid: "AllowIoTAndSecretsManagerFullAccess",
+  actions: ["iot:*", "secretsmanager:*"],
+  resources: ["*"],
+});
+chatGPTFunction.addToRolePolicy(chatGPTStatement);
 
 const pubSubFunction = backend.pubSub.resources.lambda;
 const pubSubStatement = new iam.PolicyStatement({

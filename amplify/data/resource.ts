@@ -1,6 +1,7 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { chatClaude } from "../functions/chat-claude/resource";
 import { pubSub } from "../functions/pubsub/resource";
+import { chatGPT } from "../functions/chat-gpt/resource";
 
 // content: a.json().array()
 // ★2重配列であり、''で囲む必要がある
@@ -24,6 +25,15 @@ const schema = a.schema({
     })
     .returns(a.string())
     .handler(a.handler.function(chatClaude))
+    .authorization((allow) => [allow.publicApiKey()]),
+  ChatGPT: a
+    .query()
+    .arguments({
+      email: a.string(),
+      content: a.json().array(),
+    })
+    .returns(a.string())
+    .handler(a.handler.function(chatGPT))
     .authorization((allow) => [allow.publicApiKey()]),
   PubSub: a
     .query()

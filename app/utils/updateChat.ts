@@ -5,8 +5,7 @@ import { describeChat } from "@/app/utils/describeChat";
 
 const client = generateClient<Schema>();
 
-export const updateChat = async (setLoading: (loading: boolean) => void, setSelectedChat: (chat: Schema["ChatHistory"]["type"] | null) => void, message: string, setMessage: (message: string) => void, selectedChatId?: string) => {
-  setMessage("");
+export const updateChat = async (setLoading: (loading: boolean) => void, setSelectedChat: (chat: Schema["ChatHistory"]["type"] | null) => void, message: string, setClaudeMessage: (message: string) => void, setChatgptMessage: (message: string) => void, selectedChatId?: string) => {
   setLoading(true);
   let chatId: string | undefined;
   try {
@@ -41,6 +40,9 @@ export const updateChat = async (setLoading: (loading: boolean) => void, setSele
         }
       }
     }
+    setClaudeMessage("");
+    setChatgptMessage("");
+    setLoading(false);
   } catch (error) {
     console.error("Error fetching chat:", error);
   }

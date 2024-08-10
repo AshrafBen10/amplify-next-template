@@ -105,8 +105,14 @@ export const createChat = async (email: string, textareaRef: React.RefObject<HTM
       // textareaの内容をクリア
       textareaRef.current.value = "";
 
-      // ChatClaudeに問い合わせてレスポンスを取得
-      await client.queries.ChatClaude({
+      /// awaitしない!!
+      /// ChatClaudeに問い合わせてレスポンスを取得 ///
+      client.queries.ChatClaude({
+        email: email,
+        content: [JSON.stringify(chatMessages)],
+      });
+      /// ChatGPTに問い合わせてレスポンスを取得 ///
+      client.queries.ChatGPT({
         email: email,
         content: [JSON.stringify(chatMessages)],
       });

@@ -51,6 +51,7 @@ export default function App() {
   const [email, setEmail] = useState<string>("");
   const [cognitoIdentityId, setCognitoIdentityId] = useState<string>("");
   const [claudeMessage, setClaudeMessage] = useState("");
+  const [chatgptMessage, setChatgptMessage] = useState("");
   const [connectionState, setConnectionState] = useState<ConnectionState | null>(null);
 
   /////////////////////
@@ -127,7 +128,6 @@ export default function App() {
         const res = await client.queries.PubSub({
           cognitoIdentityId: cognitoIdentityId,
         });
-        console.log(res);
 
         interface PubSubMessage {
           role: string;
@@ -136,10 +136,11 @@ export default function App() {
 
         const sub = pubsub.subscribe({ topics: email }).subscribe({
           next: (data: any) => {
-            console.log(data);
-            // if (data.role === "claude") {
-            setClaudeMessage((prevMessage) => prevMessage + data.message);
-            // }
+            if (data.role === "claude") {
+              setClaudeMessage((prevMessage) => prevMessage + data.message);
+            } else if (data.role === "chatgpt") {
+              setChatgptMessage((prevMessage) => prevMessage + data.message);
+            }
           },
           error: console.error,
           complete: () => console.log("PubSub Session Completed"),
@@ -200,10 +201,14 @@ export default function App() {
   }, []);
 
   // 生成AIのチャット更新
-  /// claudeの場合
+  /// claudeの場合 ///
   const handleUpdateClaudeChat = useCallback(async () => {
-    await updateChat(setLoading, setSelectedChat, claudeMessage, setClaudeMessage, selectedChat?.id); // ? オプショナルは最後に置く
+    await updateChat(setLoading, setSelectedChat, claudeMessage, setClaudeMessage, setChatgptMessage, selectedChat?.id); // ? オプショナルは最後に置く
   }, [selectedChat, setSelectedChat, claudeMessage, setClaudeMessage]);
+  /// chatgptの場合 ///
+  const handleUpdateChatgptChat = useCallback(async () => {
+    await updateChat(setLoading, setSelectedChat, chatgptMessage, setClaudeMessage, setChatgptMessage, selectedChat?.id);
+  }, [selectedChat, setSelectedChat, chatgptMessage, setChatgptMessage]);
 
   // チャット内容表示
   const handleDescribeChat = useCallback(async (id: string) => {
@@ -252,12 +257,24 @@ export default function App() {
                     {content.message}
                   </p>
                 ))}
-              {claudeMessage && (
-                <div>
-                  <p className="break-words px-4 py-2 mb-2 rounded-lg bg-green-100">{claudeMessage}</p>
-                  <Button onClick={() => setClaudeMessage("")}>Clear</Button>
-                </div>
-              )}
+              <div className="flex flex-row space-x-2">
+                {claudeMessage && (
+                  <div className="w-1/2">
+                    <p className="break-words px-4 py-2 mb-2 rounded-lg bg-green-100">{claudeMessage}</p>
+                    <Button color="success" onClick={handleUpdateClaudeChat}>
+                      Select Claude
+                    </Button>
+                  </div>
+                )}
+                {chatgptMessage && (
+                  <div className="w-1/2">
+                    <p className="break-words px-4 py-2 mb-2 rounded-lg bg-yellow-100">{chatgptMessage}</p>
+                    <Button color="warning" onClick={handleUpdateChatgptChat}>
+                      Select ChatGPT
+                    </Button>
+                  </div>
+                )}
+              </div>
               <div className="mt-auto">
                 <div className="pb-3">
                   <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef, onKeyDown: handleKeyDown } }} />
