@@ -62,6 +62,18 @@ export default function App() {
   ///////////////////////
   // email、cognit id、chat履歴、pubsub connectionが取得できるまでローディング画面を表示させる
   const checkInitialization = useCallback(() => {
+    if (!email) {
+      console.log("email is not available yet");
+    }
+    if (!cognitoIdentityId) {
+      console.log("cognitoIdentityId is not available yet");
+    }
+    if (chats.length < 0) {
+      console.log("chats is not available yet");
+    }
+    if (connectionState !== ConnectionState.Connected) {
+      console.log("connectionState is not Connected yet");
+    }
     if (email && cognitoIdentityId && chats.length >= 0 && connectionState === ConnectionState.Connected) {
       if (!isInitialized) {
         setIsInitialized(true);
