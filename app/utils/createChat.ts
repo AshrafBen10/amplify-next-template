@@ -5,7 +5,9 @@ import { describeChat } from "@/app/utils/describeChat";
 
 const client = generateClient<Schema>();
 
-// メッセージリストの中に"skip"メッセージを挿入する関数
+////////////////////////////////////////////////////////
+/// メッセージリストの中に"skip"メッセージを挿入する関数 ///
+////////////////////////////////////////////////////////
 const insertSkipMessages = (messages: { role: string; message: string }[]) => {
   const updatedMessages: { role: string; message: string }[] = [];
 
@@ -31,13 +33,15 @@ const insertSkipMessages = (messages: { role: string; message: string }[]) => {
   return updatedMessages;
 };
 
-// チャット作成または更新処理
-export const createChat = async (email: string, textareaRef: React.RefObject<HTMLTextAreaElement>, setLoading: (loading: boolean) => void, selectedChatId?: string, setSelectedChat?: (chat: Schema["ChatHistory"]["type"] | null) => void) => {
+////////////////////////////////
+/// チャット作成または更新処理 ///
+////////////////////////////////
+export const createChat = async (email: string, textareaRef: React.RefObject<HTMLTextAreaElement>, setLoading: (loading: boolean) => void, setSelectedChat: (chat: Schema["ChatHistory"]["type"] | null) => void, selectedChatId?: string) => {
   setLoading(true);
   let chatId: string | undefined;
   try {
     if (textareaRef.current?.value) {
-      const value = textareaRef.current.value;
+      const value = textareaRef.current.value; // ユーザが入力したチャット情報を取得
       const newContent = {
         message: value,
         role: "user",
@@ -45,38 +49,37 @@ export const createChat = async (email: string, textareaRef: React.RefObject<HTM
       let chatMessages: any[] = [];
 
       if (selectedChatId) {
-        // 既存のチャットを取得して更新する処理
-        const existingChat = await client.models.ChatHistory.get({ id: selectedChatId });
+        /////////////////////////////////////////////////////////////
+        /// ユーザが入力したチャットを既存のチャット履歴に反映する処理 ///
+        /////////////////////////////////////////////////////////////
+        const existingChat = await client.models.ChatHistory.get({ id: selectedChatId }); // 既存のチャット履歴を取得
         if (existingChat.data && existingChat.data.content) {
           const content = existingChat.data.content[0];
           if (typeof content === "string") {
             chatMessages = JSON.parse(content);
           }
           chatId = existingChat.data.id;
-          chatMessages.push(newContent);
+          chatMessages.push(newContent); // チャット履歴に新しいユーザが入力したチャットを追加
 
-          // 連続するメッセージの間に"skip"メッセージを追加
+          // メッセージのroleが連続する場合の処理
           chatMessages = insertSkipMessages(chatMessages);
 
-          // 更新されたメッセージリストをJSON文字列に変換
+          // ユーザが入力したチャット情報をLambda引数用に変換
           const updatedContent = [JSON.stringify(chatMessages)];
 
-          // 既存のチャットを更新
+          // ユーザが入力したチャット情報をデータベースに反映する
           await client.models.ChatHistory.update({
             id: chatId,
             content: updatedContent,
           });
 
-          // 更新後にチャット詳細を取得
-          if (setSelectedChat && chatId) {
-            await describeChat(client, chatId, setSelectedChat);
-          }
+          // 更新後にチャット内容を取得し、画面に反映する
+          await describeChat(client, chatId, setSelectedChat);
         } else {
           console.error("指定されたIDのチャットが見つかりません");
           return;
         }
       } else {
-        // 新しいチャットを作成する処理
         chatId = uuidv4();
         chatMessages = [newContent];
 
@@ -94,44 +97,25 @@ export const createChat = async (email: string, textareaRef: React.RefObject<HTM
         });
 
         // 作成後にチャット詳細を取得
-        if (setSelectedChat && chatId) {
-          await describeChat(client, chatId, setSelectedChat);
-        }
+        await describeChat(client, chatId, setSelectedChat);
       }
-
+      ////////////////////////////////////////////////
+      /// 生成AIのチャットをチャット履歴に反映する処理 ///
+      ////////////////////////////////////////////////
       // textareaの内容をクリア
       textareaRef.current.value = "";
 
-      // ChatClaudeに問い合わせてレスポンスを取得
-      const response = await client.queries.ChatClaude({
+      /// awaitしない!!
+      /// ChatClaudeに問い合わせてレスポンスを取得 ///
+      client.queries.ChatClaude({
+        email: email,
         content: [JSON.stringify(chatMessages)],
       });
-
-      // 取得したレスポンスをメッセージリストに追加
-      const assistantMessage = {
-        role: "assistant",
-        message: response.data,
-      };
-      chatMessages.push(assistantMessage);
-
-      // 連続するメッセージの間に"skip"メッセージを追加
-      chatMessages = insertSkipMessages(chatMessages);
-
-      // 更新されたメッセージリストをJSON文字列に変換
-      const updatedContentWithAssistant = [JSON.stringify(chatMessages)];
-
-      // 既存のチャットを更新（レスポンスを追加）
-      if (chatId) {
-        await client.models.ChatHistory.update({
-          id: chatId,
-          content: updatedContentWithAssistant,
-        });
-
-        // レスポンス追加後にチャット詳細を取得
-        if (setSelectedChat) {
-          await describeChat(client, chatId, setSelectedChat);
-        }
-      }
+      /// ChatGPTに問い合わせてレスポンスを取得 ///
+      client.queries.ChatGPT({
+        email: email,
+        content: [JSON.stringify(chatMessages)],
+      });
     }
   } catch (error) {
     console.error("チャットの作成または更新中にエラーが発生しました:", error);
