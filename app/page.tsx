@@ -63,10 +63,13 @@ export default function App() {
   // email、cognit id、chat履歴、pubsub connectionが取得できるまでローディング画面を表示させる
   const checkInitialization = useCallback(() => {
     if (email && cognitoIdentityId && chats.length >= 0 && connectionState === ConnectionState.Connected) {
-      setIsInitialized(true);
-      setIsAuthenticating(false);
+      if (!isInitialized) {
+        setIsInitialized(true);
+        setIsAuthenticating(false);
+        console.log("Initialization completed");
+      }
     }
-  }, [email, cognitoIdentityId, chats, connectionState]);
+  }, [email, cognitoIdentityId, chats, connectionState, isInitialized]);
 
   /////////////////////
   /// ユーザ情報取得 ///
