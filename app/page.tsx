@@ -170,7 +170,7 @@ export default function App() {
 
     const setupPubSub = async () => {
       try {
-        const res = await client.queries.PubSub({
+        await client.queries.PubSub({
           cognitoIdentityId: cognitoIdentityId,
         });
 
@@ -186,12 +186,12 @@ export default function App() {
           error: (error) => {
             console.error("Error in PubSub subscription:", error);
             setConnectionState(ConnectionState.Disconnected);
-            setupPubSub();
+            setIsReconnecting(true); // 再接続フラグを設定
           },
           complete: () => {
             console.log("PubSub Session Completed");
             setConnectionState(ConnectionState.Disconnected);
-            setupPubSub();
+            setIsReconnecting(true); // 再接続フラグを設定
           },
         });
 
@@ -201,9 +201,6 @@ export default function App() {
             const newState = payload.data.connectionState as ConnectionState;
             console.log("PubSub connection state changed:", newState);
             setConnectionState(newState);
-            if (newState !== ConnectionState.Connected) {
-              setupPubSub();
-            }
           }
         });
 
@@ -216,9 +213,21 @@ export default function App() {
       }
     };
 
-    const cleanup = setupPubSub();
+    const initializePubSub = async () => {
+      await setupPubSub();
+
+      // 再接続
+      if (isReconnecting) {
+        setTimeout(() => {
+          initializePubSub();
+        }, 3000);
+      }
+    };
+
+    initializePubSub();
+
     return () => {
-      cleanup.then((cleanupFn) => cleanupFn && cleanupFn());
+      setIsReconnecting(false);
     };
   }, [cognitoIdentityId, email, isReconnecting]);
 
@@ -313,7 +322,7 @@ export default function App() {
                         {content.message}
                       </p>
                     ))}
-                  <div className="flex flex-row space-x-2">
+                  <div className="flex flex-row space-x-2 pb-2">
                     {claudeMessage && (
                       <div className="w-1/2">
                         <p className="break-words px-4 py-2 mb-2 rounded-lg bg-green-100">{claudeMessage}</p>
