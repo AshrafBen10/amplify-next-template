@@ -168,39 +168,30 @@ export default function App() {
   useEffect(() => {
     if (!cognitoIdentityId || !email) return;
 
-    let isSubscribed = true; // サブスクリプションが有効かどうかを示すフラグ
-
     const setupPubSub = async () => {
       try {
-        // PubSubのセットアップ
-        const res = await client.queries.PubSub({
+        await client.queries.PubSub({
           cognitoIdentityId: cognitoIdentityId,
         });
 
         const sub = pubsub.subscribe({ topics: email }).subscribe({
           next: (data: any) => {
-            if (isSubscribed) {
-              setConnectionState(ConnectionState.Connected);
-              if (data.role === "claude") {
-                setClaudeMessage((prevMessage) => prevMessage + data.message);
-              } else if (data.role === "chatgpt") {
-                setChatgptMessage((prevMessage) => prevMessage + data.message);
-              }
+            setConnectionState(ConnectionState.Connected);
+            if (data.role === "claude") {
+              setClaudeMessage((prevMessage) => prevMessage + data.message);
+            } else if (data.role === "chatgpt") {
+              setChatgptMessage((prevMessage) => prevMessage + data.message);
             }
           },
           error: (error) => {
             console.error("Error in PubSub subscription:", error);
-            if (isSubscribed) {
-              setConnectionState(ConnectionState.Disconnected);
-              setIsReconnecting(true); // 再接続フラグを設定
-            }
+            setConnectionState(ConnectionState.Disconnected);
+            setIsReconnecting(true); // 再接続フラグを設定
           },
           complete: () => {
             console.log("PubSub Session Completed");
-            if (isSubscribed) {
-              setConnectionState(ConnectionState.Disconnected);
-              setIsReconnecting(true); // 再接続フラグを設定
-            }
+            setConnectionState(ConnectionState.Disconnected);
+            setIsReconnecting(true); // 再接続フラグを設定
           },
         });
 
@@ -209,15 +200,11 @@ export default function App() {
           if (payload.event === CONNECTION_STATE_CHANGE) {
             const newState = payload.data.connectionState as ConnectionState;
             console.log("PubSub connection state changed:", newState);
-            if (isSubscribed) {
-              setConnectionState(newState);
-            }
+            setConnectionState(newState);
           }
         });
 
-        // クリーンアップ関数
         return () => {
-          isSubscribed = false; // サブスクリプションを解除する際にフラグを設定
           sub.unsubscribe();
           hubListener();
         };
@@ -229,18 +216,18 @@ export default function App() {
     const initializePubSub = async () => {
       await setupPubSub();
 
-      // 再接続が必要な場合、再試行を実行
+      // 再接続
       if (isReconnecting) {
         setTimeout(() => {
           initializePubSub();
-        }, 5000); // 5秒後に再試行
+        }, 3000);
       }
     };
 
     initializePubSub();
 
     return () => {
-      setIsReconnecting(false); // クリーンアップ時に再接続フラグをリセット
+      setIsReconnecting(false);
     };
   }, [cognitoIdentityId, email, isReconnecting]);
 
@@ -335,7 +322,7 @@ export default function App() {
                         {content.message}
                       </p>
                     ))}
-                  <div className="flex flex-row space-x-2">
+                  <div className="flex flex-row space-x-2 pb-2">
                     {claudeMessage && (
                       <div className="w-1/2">
                         <p className="break-words px-4 py-2 mb-2 rounded-lg bg-green-100">{claudeMessage}</p>
