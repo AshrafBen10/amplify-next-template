@@ -19,6 +19,7 @@ const schema = a.schema({
   ChatClaude: a
     .query()
     .arguments({
+      email: a.string(),
       content: a.json().array(),
     })
     .returns(a.string())

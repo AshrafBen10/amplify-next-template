@@ -22,6 +22,7 @@ import { newCreateChat } from "@/app/utils/newCreateChat";
 import { createChat } from "@/app/utils/createChat";
 import { deleteChat } from "@/app/utils/deleteChat";
 import { describeChat } from "@/app/utils/describeChat";
+import { updateChat } from "@/app/utils/updateChat";
 import { formatTimestamp } from "./utils/formatTimestamp";
 
 ///////////////
@@ -49,10 +50,8 @@ export default function App() {
   const [selectedChat, setSelectedChat] = useState<ChatHistory | null>(null);
   const [email, setEmail] = useState<string>("");
   const [cognitoIdentityId, setCognitoIdentityId] = useState<string>("");
-  const [role, setRole] = useState("");
-  const [message, setMessage] = useState("");
+  const [claudeMessage, setClaudeMessage] = useState("");
   const [connectionState, setConnectionState] = useState<ConnectionState | null>(null);
-  const [topic, setTopic] = useState<string>("");
 
   /////////////////////
   /// ユーザ情報取得 ///
@@ -123,8 +122,6 @@ export default function App() {
   useEffect(() => {
     if (!cognitoIdentityId || !email) return;
 
-    setTopic(email); // メールアドレスをトピックとして設定
-
     const setupPubSub = async () => {
       try {
         const res = await client.queries.PubSub({
@@ -139,17 +136,22 @@ export default function App() {
 
         const sub = pubsub.subscribe({ topics: email }).subscribe({
           next: (data: any) => {
-            setRole(data.role);
-            setMessage((prevMessage) => prevMessage + data.message);
-            console.log("Message received", data);
+            console.log(data);
+            // if (data.role === "claude") {
+            setClaudeMessage((prevMessage) => prevMessage + data.message);
+            // }
           },
           error: console.error,
+          complete: () => console.log("PubSub Session Completed"),
         });
 
+        // PubSub状態
         const hubListener = Hub.listen("pubsub", (data: any) => {
           const { payload } = data;
           if (payload.event === CONNECTION_STATE_CHANGE) {
-            setConnectionState(payload.data.connectionState as ConnectionState);
+            const newState = payload.data.connectionState as ConnectionState;
+            console.log("PubSub connection state changed:", newState, payload);
+            setConnectionState(newState);
           }
         });
 
@@ -173,7 +175,7 @@ export default function App() {
   ///////////////////
   // チャット送信1 (Buttonクリック時)
   const handleCreateChat = useCallback(async () => {
-    await createChat(email, textareaRef, setLoading, selectedChat?.id, setSelectedChat);
+    await createChat(email, textareaRef, setLoading, setSelectedChat, selectedChat?.id);
   }, [email, selectedChat]);
 
   // チャット送信2 (Enterキー時)
@@ -181,7 +183,7 @@ export default function App() {
     async (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
-        await createChat(email, textareaRef, setLoading, selectedChat?.id, setSelectedChat);
+        await createChat(email, textareaRef, setLoading, setSelectedChat, selectedChat?.id);
       }
     },
     [email, selectedChat],
@@ -196,6 +198,12 @@ export default function App() {
   const handleDeleteChat = useCallback(async (id: string) => {
     await deleteChat(id, setIsDeleting, setLoading, handleDescribeChat);
   }, []);
+
+  // 生成AIのチャット更新
+  /// claudeの場合
+  const handleUpdateClaudeChat = useCallback(async () => {
+    await updateChat(setLoading, setSelectedChat, claudeMessage, setClaudeMessage, selectedChat?.id); // ? オプショナルは最後に置く
+  }, [selectedChat, setSelectedChat, claudeMessage, setClaudeMessage]);
 
   // チャット内容表示
   const handleDescribeChat = useCallback(async (id: string) => {
@@ -239,11 +247,17 @@ export default function App() {
                 Array.isArray(selectedChat.content) &&
                 selectedChat.content.length > 0 &&
                 typeof selectedChat.content[0] === "string" &&
-                JSON.parse(selectedChat.content[0]).map((message: { role: string; message: string }, index: number) => (
-                  <p key={index} className={`break-words px-4 py-2 mb-2 rounded-lg ${message.role === "user" ? "bg-blue-100" : message.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}>
-                    {message.message}
+                JSON.parse(selectedChat.content[0]).map((content: { role: string; message: string }, index: number) => (
+                  <p key={index} className={`break-words px-4 py-2 mb-2 rounded-lg ${content.role === "user" ? "bg-blue-100" : content.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}>
+                    {content.message}
                   </p>
                 ))}
+              {claudeMessage && (
+                <div>
+                  <p className="break-words px-4 py-2 mb-2 rounded-lg bg-green-100">{claudeMessage}</p>
+                  <Button onClick={() => setClaudeMessage("")}>Clear</Button>
+                </div>
+              )}
               <div className="mt-auto">
                 <div className="pb-3">
                   <Textarea name="Outlined" placeholder="Type in here…" variant="outlined" slotProps={{ textarea: { ref: textareaRef, onKeyDown: handleKeyDown } }} />
@@ -254,16 +268,6 @@ export default function App() {
 
             <div className="w-1/6 flex flex-col items-center p-3 m-3 border-blue-300 border-2">
               <div>right-bar</div>
-              {role && (
-                <div className="bg-green-100 p-2 mb-4 rounded">
-                  <p>{role}</p>
-                </div>
-              )}
-              {message && (
-                <div className="bg-green-100 p-2 mb-4 rounded">
-                  <p>{message}</p>
-                </div>
-              )}
             </div>
           </div>
         </main>
