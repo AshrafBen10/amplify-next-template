@@ -15,13 +15,16 @@ const backend = defineBackend({
 });
 
 // CognitoのIAM RoleにIoTへのアクセス許可を与える
-backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(
-  new iam.PolicyStatement({
-    effect: iam.Effect.ALLOW,
-    actions: ["iot:*"],
-    resources: ["*"],
-  }),
-);
+backend.auth.resources.authenticatedUserIamRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AWSIoTDataAccess"));
+backend.auth.resources.authenticatedUserIamRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AWSIoTConfigAccess"));
+
+// backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(
+//   new iam.PolicyStatement({
+//     effect: iam.Effect.ALLOW,
+//     actions: ["iot:*"],
+//     resources: ["*"],
+//   }),
+// );
 
 // CDKを利用してLambdaに追加のIAM Policyを割り当てる
 const chatClaudeFunction = backend.chatClaude.resources.lambda;
