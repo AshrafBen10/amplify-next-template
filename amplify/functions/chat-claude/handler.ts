@@ -13,7 +13,7 @@ const config = {
 };
 const bedrock_client = new BedrockRuntimeClient(config);
 const iot_client = new IoTDataPlaneClient(config);
-const model_id = "anthropic.claude-3-sonnet-20240229-v1:0";
+const model_id = "anthropic.claude-3-haiku-20240307-v1:0";
 
 interface Message {
   role: string;
