@@ -22,7 +22,7 @@ interface Message {
 
 export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) => {
   try {
-    const rawContent = event.arguments.content as string[] | undefined;
+    const rawContent = event.arguments.content as string[] | undefined; // 入力テキスト
     const topic = event.arguments.email as string | undefined;
     console.log("Raw content:", rawContent);
     let newContent;

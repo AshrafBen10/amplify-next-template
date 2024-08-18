@@ -17,6 +17,14 @@ import { I18n } from "aws-amplify/utils";
 import { translations } from "@aws-amplify/ui-react";
 import { PubSub } from "@aws-amplify/pubsub";
 import { CONNECTION_STATE_CHANGE, ConnectionState } from "@aws-amplify/pubsub";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import atomOneDark from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";
+import { CopyToClipboard } from "react-copy-to-clipboard";
 
 import { newCreateChat } from "@/app/utils/newCreateChat";
 import { createChat } from "@/app/utils/createChat";
@@ -280,6 +288,19 @@ export default function App() {
     await describeChat(client, id, setSelectedChat);
   }, []);
 
+  // コードブロックスタイル定義
+  interface CodeBlockProps {
+    language: string;
+    value: string;
+  }
+  const CodeBlock: React.FC<CodeBlockProps> = ({ language, value }) => {
+    return (
+      <SyntaxHighlighter language={language} style={atomOneDark}>
+        {value}
+      </SyntaxHighlighter>
+    );
+  };
+
   ///////////////////
   /// レンダリング ///
   ///////////////////
@@ -326,14 +347,51 @@ export default function App() {
                     selectedChat.content.length > 0 &&
                     typeof selectedChat.content[0] === "string" &&
                     JSON.parse(selectedChat.content[0]).map((content: { role: string; message: string }, index: number) => (
-                      <p key={index} className={`break-words px-4 py-2 mb-2 rounded-lg ${content.role === "user" ? "bg-blue-100" : content.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}>
+                      <ReactMarkdown
+                        key={index}
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex, rehypeRaw]}
+                        className={`markdown break-words px-4 py-2 mb-2 rounded-lg ${content.role === "user" ? "bg-blue-100" : content.role === "assistant" ? "bg-red-100" : "bg-slate-100"}`}
+                        components={{
+                          code({ node, className, children, ...props }) {
+                            const match = /language-(\w+)/.exec(className || "");
+                            const inline = node?.properties?.inline || false;
+                            return !inline && match ? (
+                              <CodeBlock language={match[1]} value={String(children).replace(/\n$/, "")} />
+                            ) : (
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            );
+                          },
+                        }}
+                      >
                         {content.message}
-                      </p>
+                      </ReactMarkdown>
                     ))}
                   <div className="flex flex-row space-x-2 pb-2">
                     {claudeMessage && (
                       <div className="w-1/2">
-                        <p className="break-words px-4 py-2 mb-2 rounded-lg bg-green-100">{claudeMessage}</p>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[rehypeKatex, rehypeRaw]}
+                          className="markdown break-words px-4 py-2 mb-2 rounded-lg bg-green-100"
+                          components={{
+                            code({ node, className, children, ...props }) {
+                              const match = /language-(\w+)/.exec(className || "");
+                              const inline = node?.properties?.inline || false;
+                              return !inline && match ? (
+                                <CodeBlock language={match[1]} value={String(children).replace(/\n$/, "")} />
+                              ) : (
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                          }}
+                        >
+                          {claudeMessage}
+                        </ReactMarkdown>
                         <Button color="success" onClick={handleUpdateClaudeChat}>
                           Select Claude
                         </Button>
@@ -341,7 +399,26 @@ export default function App() {
                     )}
                     {chatgptMessage && (
                       <div className="w-1/2">
-                        <p className="break-words px-4 py-2 mb-2 rounded-lg bg-yellow-100">{chatgptMessage}</p>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[rehypeKatex, rehypeRaw]}
+                          className="markdown break-words px-4 py-2 mb-2 rounded-lg bg-yellow-100"
+                          components={{
+                            code({ node, className, children, ...props }) {
+                              const match = /language-(\w+)/.exec(className || "");
+                              const inline = node?.properties?.inline || false;
+                              return !inline && match ? (
+                                <CodeBlock language={match[1]} value={String(children).replace(/\n$/, "")} />
+                              ) : (
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                          }}
+                        >
+                          {chatgptMessage}
+                        </ReactMarkdown>
                         <Button color="warning" onClick={handleUpdateChatgptChat}>
                           Select ChatGPT
                         </Button>
