@@ -196,12 +196,12 @@ export default function App() {
           error: (error) => {
             console.error("Error in PubSub subscription:", error);
             setConnectionState(ConnectionState.Disconnected);
-            setIsReconnecting(true); // 再接続フラグを設定
+            setIsReconnecting(true);
           },
           complete: () => {
             console.log("PubSub Session Completed");
             setConnectionState(ConnectionState.Disconnected);
-            setIsReconnecting(true); // 再接続フラグを設定
+            setIsReconnecting(true);
           },
         });
 
@@ -226,7 +226,6 @@ export default function App() {
     const initializePubSub = async () => {
       await setupPubSub();
 
-      // 再接続
       if (isReconnecting) {
         setTimeout(() => {
           initializePubSub();
@@ -288,16 +287,32 @@ export default function App() {
     await describeChat(client, id, setSelectedChat);
   }, []);
 
-  // コードブロックスタイル定義
+  ////////////////////////////////
+  /// コードブロックスタイル定義 ///
+  ////////////////////////////////
+
   interface CodeBlockProps {
     language: string;
     value: string;
   }
+
   const CodeBlock: React.FC<CodeBlockProps> = ({ language, value }) => {
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopy = () => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    };
+
     return (
-      <SyntaxHighlighter language={language} style={atomOneDark}>
-        {value}
-      </SyntaxHighlighter>
+      <div className="relative">
+        <CopyToClipboard text={value} onCopy={handleCopy}>
+          <button className={`absolute top-1 right-1 px-2 py-1 text-sm text-white rounded ${isCopied ? "bg-purple-500" : "bg-gray-700 hover:bg-gray-600"}`}>{isCopied ? "Copied!" : "Copy"}</button>
+        </CopyToClipboard>
+        <SyntaxHighlighter className="rounded-md" language={language} style={atomOneDark}>
+          {value}
+        </SyntaxHighlighter>
+      </div>
     );
   };
 

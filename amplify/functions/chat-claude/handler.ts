@@ -24,7 +24,7 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
   try {
     const rawContent = event.arguments.content as string[] | undefined; // 入力テキスト
     const topic = event.arguments.email as string | undefined;
-    console.log("Raw content:", rawContent);
+    // console.log("Raw content:", rawContent);
     let newContent;
     if (rawContent && Array.isArray(rawContent) && rawContent.length > 0) {
       const parsedContent = Array.isArray(rawContent[0]) ? rawContent[0] : JSON.parse(rawContent[0]);
@@ -62,7 +62,7 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
               payload: JSON.stringify({ role: "claude", message: chunkText }), // claude role
             };
             await iot_client.send(new PublishCommand(publishParams));
-            console.log("Published chunk successfully");
+            // console.log("Published chunk successfully");
           }
         } catch (parseError) {
           console.error("Error parsing chunk:", parseError);

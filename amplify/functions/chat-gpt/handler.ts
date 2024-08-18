@@ -43,7 +43,7 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
   try {
     const rawContent = event.arguments.content as string[] | undefined;
     const topic = event.arguments.email as string | undefined;
-    console.log("Raw content:", rawContent);
+    // console.log("Raw content:", rawContent);
     let newContent;
     if (rawContent && Array.isArray(rawContent) && rawContent.length > 0) {
       const parsedContent = Array.isArray(rawContent[0]) ? rawContent[0] : JSON.parse(rawContent[0]);
