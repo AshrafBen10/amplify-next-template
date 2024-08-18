@@ -4,4 +4,5 @@ export const chatClaude = defineFunction({
   name: "chat-claude",
   entry: "./handler.ts",
   timeoutSeconds: 900,
+  memoryMB: 1024,
 });

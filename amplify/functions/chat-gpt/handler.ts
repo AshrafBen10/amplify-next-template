@@ -43,7 +43,7 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
   try {
     const rawContent = event.arguments.content as string[] | undefined;
     const topic = event.arguments.email as string | undefined;
-    console.log("Raw content:", rawContent);
+    // console.log("Raw content:", rawContent);
     let newContent;
     if (rawContent && Array.isArray(rawContent) && rawContent.length > 0) {
       const parsedContent = Array.isArray(rawContent[0]) ? rawContent[0] : JSON.parse(rawContent[0]);
@@ -67,6 +67,7 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
       model: model_id,
       messages: newContent as OpenAI.Chat.ChatCompletionMessage[],
       stream: true,
+      max_tokens: 4000,
     });
 
     if (stream) {
@@ -78,13 +79,14 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
             payload: JSON.stringify({ role: "chatgpt", message: text }),
           };
           await iot_client.send(new PublishCommand(publishParams));
-          console.log("Published chunk successfully");
+          // console.log("Published chunk successfully");
         }
       }
     } else {
       console.log("No response stream received from OpenAI");
     }
 
+    console.log("Streaming completed");
     return "Streaming completed";
   } catch (error) {
     console.error("An error occurred:", error);

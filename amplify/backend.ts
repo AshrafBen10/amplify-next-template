@@ -30,7 +30,7 @@ backend.auth.resources.authenticatedUserIamRole.addManagedPolicy(iam.ManagedPoli
 const chatClaudeFunction = backend.chatClaude.resources.lambda;
 const chatClaudeStatement = new iam.PolicyStatement({
   sid: "AllowBedrockAndIoTFullAccess",
-  actions: ["bedrock:*", "iot:*"],
+  actions: ["bedrock:*", "iot:*", "comprehend:*"],
   resources: ["*"],
 });
 chatClaudeFunction.addToRolePolicy(chatClaudeStatement);
@@ -38,7 +38,7 @@ chatClaudeFunction.addToRolePolicy(chatClaudeStatement);
 const chatGPTFunction = backend.chatGPT.resources.lambda;
 const chatGPTStatement = new iam.PolicyStatement({
   sid: "AllowIoTAndSecretsManagerFullAccess",
-  actions: ["iot:*", "secretsmanager:*"],
+  actions: ["iot:*", "comprehend:*", "secretsmanager:*"],
   resources: ["*"],
 });
 chatGPTFunction.addToRolePolicy(chatGPTStatement);
