@@ -16,7 +16,7 @@ const schema = a.schema({
       email: a.string().required(),
       content: a.json().array(),
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
   ChatClaude: a
     .query()
     .arguments({
@@ -25,7 +25,7 @@ const schema = a.schema({
     })
     .returns(a.string())
     .handler(a.handler.function(chatClaude))
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
   ChatGPT: a
     .query()
     .arguments({
@@ -34,7 +34,7 @@ const schema = a.schema({
     })
     .returns(a.string())
     .handler(a.handler.function(chatGPT))
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
   PubSub: a
     .query()
     .arguments({
@@ -42,7 +42,7 @@ const schema = a.schema({
     })
     .returns(a.string())
     .handler(a.handler.function(pubSub))
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.authenticated()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -50,7 +50,7 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: "apiKey",
+    defaultAuthorizationMode: "userPool",
     apiKeyAuthorizationMode: {
       expiresInDays: 30,
     },
