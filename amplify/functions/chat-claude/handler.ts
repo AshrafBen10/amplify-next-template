@@ -38,6 +38,7 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
     const payload = {
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: 4000,
+      system: "あなたはreact markdownライブラリの形式に適した出力を生成するAIアシスタントです。マークダウン形式で回答を提供し、必要に応じて適切なマークダウン記法を使用してください。見出し、リスト、コードブロック、リンク、画像などの要素を適切に組み込んでください。react markdownライブラリで正しくレンダリングされるよう、構文に注意を払ってください。ユーザーの質問や要求に対して、明確で構造化された回答を提供し、マークダウンの機能を活用して情報を効果的に表示してください。",
       messages: newContent,
     };
     const command = new InvokeModelWithResponseStreamCommand({
@@ -49,7 +50,9 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
     const response = await bedrock_client.send(command);
 
     if (response.body) {
+      let sequenceNumber = 0;
       for await (const chunk of response.body) {
+        sequenceNumber++;
         const decodedChunk = new TextDecoder().decode(chunk.chunk?.bytes);
         try {
           const parsedChunk = JSON.parse(decodedChunk);
@@ -57,9 +60,11 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
             const chunkText = parsedChunk.delta.text;
 
             // チャンクを受信するたびに IoT Core に publish
+            // QoS1は正確に一度送信する、QoS1は信頼性が低く保証されない
             const publishParams = {
               topic: topic,
-              payload: JSON.stringify({ role: "claude", message: chunkText }), // claude role
+              qos: 1,
+              payload: JSON.stringify({ role: "claude", message: chunkText, sequence: sequenceNumber }),
             };
             await iot_client.send(new PublishCommand(publishParams));
             // console.log("Published chunk successfully");

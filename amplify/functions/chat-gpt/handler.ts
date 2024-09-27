@@ -54,7 +54,11 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
     } else {
       newContent = [{ role: "user", content: [{ type: "text", text: "こんにちは" }] }];
     }
-
+    const systemMessage = {
+      role: "system",
+      content: [{ type: "text", text: "あなたはreact markdownライブラリの形式に適した出力を生成するAIアシスタントです。マークダウン形式で回答を提供し、必要に応じて適切なマークダウン記法を使用してください。見出し、リスト、コードブロック、リンク、画像などの要素を適切に組み込んでください。react markdownライブラリで正しくレンダリングされるよう、構文に注意を払ってください。ユーザーの質問や要求に対して、明確で構造化された回答を提供し、マークダウンの機能を活用して情報を効果的に表示してください。" }],
+    };
+    newContent = [systemMessage, ...newContent];
     const openapi_key = await getSecret("openapikey");
     const openapi_org = await getSecret("openapiorg");
     const openapi_pj = await getSecret("openapipj");
@@ -71,12 +75,15 @@ export const handler: Schema["ChatClaude"]["functionHandler"] = async (event) =>
     });
 
     if (stream) {
+      let sequenceNumber = 0;
       for await (const chunk of stream) {
+        sequenceNumber++;
         const text = chunk.choices[0]?.delta?.content || "";
         if (text) {
           const publishParams = {
             topic: topic,
-            payload: JSON.stringify({ role: "chatgpt", message: text }),
+            qos: 1,
+            payload: JSON.stringify({ role: "chatgpt", message: text, sequence: sequenceNumber }),
           };
           await iot_client.send(new PublishCommand(publishParams));
           // console.log("Published chunk successfully");
