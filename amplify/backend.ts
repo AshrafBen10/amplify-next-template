@@ -17,6 +17,7 @@ const backend = defineBackend({
 // CognitoのIAM RoleにIoTへのアクセス許可を与える
 backend.auth.resources.authenticatedUserIamRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AWSIoTDataAccess"));
 backend.auth.resources.authenticatedUserIamRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AWSIoTConfigAccess"));
+backend.auth.resources.authenticatedUserIamRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AWSAppSyncInvokeFullAccess"));
 
 // backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(
 //   new iam.PolicyStatement({
