@@ -5,12 +5,25 @@ import { describeChat } from "@/app/utils/describeChat";
 
 const client = generateClient<Schema>();
 
-export const updateChat = async (setLoading: (loading: boolean) => void, setSelectedChat: (chat: Schema["ChatHistory"]["type"] | null) => void, message: string, setClaudeMessage: (message: string) => void, setChatgptMessage: (message: string) => void, selectedChatId?: string) => {
+interface Message {
+  role: string;
+  message: string;
+  sequence: number;
+}
+
+export const updateChat = async (
+  setLoading: (loading: boolean) => void,
+  setSelectedChat: (chat: Schema["ChatHistory"]["type"] | null) => void,
+  message: Message[],
+  setClaudeMessage: (message: Message[]) => void,
+  setChatgptMessage: (message: Message[]) => void,
+  selectedChatId?: string
+) => {
   setLoading(true);
   let chatId: string | undefined;
   try {
     let chatMessages: any[] = [];
-    const value = message; // 生成AIのチャット情報
+    const value = message.map(msg => msg.message).join('');
     const newContent = {
       message: value,
       role: "assistant",
@@ -40,8 +53,8 @@ export const updateChat = async (setLoading: (loading: boolean) => void, setSele
         }
       }
     }
-    setClaudeMessage("");
-    setChatgptMessage("");
+    setClaudeMessage([]);
+    setChatgptMessage([]);
     setLoading(false);
   } catch (error) {
     console.error("Error fetching chat:", error);

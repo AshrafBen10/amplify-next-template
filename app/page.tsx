@@ -59,8 +59,8 @@ export default function App() {
   const [selectedChat, setSelectedChat] = useState<ChatHistory | null>(null);
   const [email, setEmail] = useState<string>("");
   const [cognitoIdentityId, setCognitoIdentityId] = useState<string>("");
-  const [claudeMessage, setClaudeMessage] = useState("");
-  const [chatgptMessage, setChatgptMessage] = useState("");
+  const [claudeMessage, setClaudeMessage] = useState<{ role: string; message: string; sequence: number }[]>([]);
+  const [chatgptMessage, setChatgptMessage] = useState<{ role: string; message: string; sequence: number }[]>([]);
   const [connectionState, setConnectionState] = useState<ConnectionState | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -90,6 +90,10 @@ export default function App() {
         setIsInitialized(true);
         setIsAuthenticating(false);
         console.log("Initialization completed");
+        console.log("claudeMessage:", claudeMessage);
+        setClaudeMessage([]);
+        console.log("chatgptMessage:", chatgptMessage);
+        setChatgptMessage([]);
       }
     }
   }, [email, cognitoIdentityId, chats, connectionState, isInitialized]);
@@ -187,10 +191,26 @@ export default function App() {
         const sub = pubsub.subscribe({ topics: email }).subscribe({
           next: (data: any) => {
             setConnectionState(ConnectionState.Connected);
+            
+            // 受信したメッセージをコンソールに出力
+            console.log("Received message:", data);
+
+            // メッセージをシーケンス番号でソートするための配列
+            const newMessage = { role: data.role, message: data.message, sequence: data.sequence };
+
+            // 受信したメッセージの役割に応じて格納
             if (data.role === "claude") {
-              setClaudeMessage((prevMessage) => prevMessage + data.message);
+              setClaudeMessage((prevMessages) => {
+                const messages = [...prevMessages, newMessage];
+                messages.sort((a, b) => a.sequence - b.sequence); 
+                return messages;
+              });
             } else if (data.role === "chatgpt") {
-              setChatgptMessage((prevMessage) => prevMessage + data.message);
+              setChatgptMessage((prevMessages) => {
+                const messages = [...prevMessages, newMessage];
+                messages.sort((a, b) => a.sequence - b.sequence);
+                return messages;
+              });
             }
           },
           error: (error) => {
@@ -385,7 +405,7 @@ export default function App() {
                       </ReactMarkdown>
                     ))}
                   <div className="flex flex-row space-x-2 pb-2">
-                    {claudeMessage && (
+                    {claudeMessage.length > 0 && (
                       <div className="w-1/2">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkMath]}
@@ -405,14 +425,14 @@ export default function App() {
                             },
                           }}
                         >
-                          {claudeMessage}
+                          {claudeMessage.map(msg => msg.message).join('')}
                         </ReactMarkdown>
                         <Button color="success" onClick={handleUpdateClaudeChat}>
                           Select Claude
                         </Button>
                       </div>
                     )}
-                    {chatgptMessage && (
+                    {chatgptMessage.length > 0 && (
                       <div className="w-1/2">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkMath]}
@@ -432,7 +452,7 @@ export default function App() {
                             },
                           }}
                         >
-                          {chatgptMessage}
+                          {chatgptMessage.map(msg => msg.message).join('')}
                         </ReactMarkdown>
                         <Button color="warning" onClick={handleUpdateChatgptChat}>
                           Select ChatGPT
