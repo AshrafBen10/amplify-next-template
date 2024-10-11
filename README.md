@@ -1,3 +1,6 @@
+# フロー図
+![flow](https://github.com/user-attachments/assets/dcb8226d-9b07-431f-9928-0db91c7271f6)
+
 # Memo
 
 ## Next.js (with Amplify) は、以下の GitHub テンプレートを利用
