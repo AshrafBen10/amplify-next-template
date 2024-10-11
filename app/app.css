@@ -66,7 +66,7 @@
 }
 
 .markdown code {
-  @apply font-mono text-sm inline bg-zinc-50 rounded px-1 py-05;
+  @apply font-mono text-sm inline bg-[#282C34] text-[#ABB2BF] rounded px-1 py-05;
 }
 
 /* .markdown pre {
